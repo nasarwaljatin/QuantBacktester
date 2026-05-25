@@ -74,11 +74,17 @@ def get_ohlcv(
         return df
 
     # Cache miss or stale — fetch from yfinance
+    import requests
     try:
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        })
         raw_df = yf.download(
             ticker.upper(),
             start=start.isoformat(),
             end=end.isoformat(),
+            session=session,
             progress=False,
             auto_adjust=True,
         )
