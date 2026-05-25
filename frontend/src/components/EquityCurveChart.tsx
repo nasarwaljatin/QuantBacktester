@@ -2,6 +2,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useBacktestStore } from "@/lib/store";
 import type { EquityCurvePoint } from "@/types/backtest";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
@@ -15,6 +16,7 @@ export default function EquityCurveChart({
   equityCurve,
   benchmarkCurve,
 }: EquityCurveChartProps) {
+  const currency = useBacktestStore((s) => s.currency);
   const strategyDates = equityCurve.map((p) => p.date);
   const strategyValues = equityCurve.map((p) => p.value);
   const benchmarkDates = benchmarkCurve.map((p) => p.date);
@@ -35,7 +37,7 @@ export default function EquityCurveChart({
             mode: "lines",
             name: "Strategy",
             line: { color: "#06b6d4", width: 2.5 },
-            hovertemplate: "%{x}<br>Strategy: $%{y:,.0f}<extra></extra>",
+            hovertemplate: `%{x}<br>Strategy: ${currency}%{y:,.0f}<extra></extra>`,
           },
           {
             x: benchmarkDates,
@@ -44,7 +46,7 @@ export default function EquityCurveChart({
             mode: "lines",
             name: "Buy & Hold",
             line: { color: "#6b7280", width: 1.5, dash: "dash" },
-            hovertemplate: "%{x}<br>Buy & Hold: $%{y:,.0f}<extra></extra>",
+            hovertemplate: `%{x}<br>Buy & Hold: ${currency}%{y:,.0f}<extra></extra>`,
           },
         ]}
         layout={{
@@ -60,8 +62,9 @@ export default function EquityCurveChart({
           },
           yaxis: {
             gridcolor: "rgba(75, 85, 99, 0.3)",
-            title: { text: "Portfolio Value ($)" },
-            tickformat: "$,.0f",
+            title: { text: `Portfolio Value (${currency})` },
+            tickformat: ",.0f",
+            tickprefix: currency,
           },
           legend: {
             orientation: "h",

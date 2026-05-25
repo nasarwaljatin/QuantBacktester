@@ -29,7 +29,7 @@ def run_backtest(
     slippage = config.get("slippage", 0.0005)
 
     # Create Cerebro engine
-    cerebro = bt.Cerebro()
+    cerebro = bt.Cerebro(tradehistory=True)
 
     # Configure broker
     cerebro.broker.setcash(initial_capital)
@@ -132,32 +132,47 @@ def _extract_trades(strategy: bt.Strategy) -> list[dict[str, Any]]:
     except Exception:
         return trades
 
-    # Extract from the strategy's trade history via the analyzer
-    # Backtrader trade analyzer provides summary stats, so we reconstruct from orders
+    # Extract from the strategy's trade history
     for trade in strategy._trades.values():
         for t_list in trade.values():
             for t in t_list:
                 if t.isclosed:
                     entry_dt = bt.num2date(t.dtopen)
                     exit_dt = bt.num2date(t.dtclose)
-                    entry_price = t.price
-                    size = t.size
-                    pnl = t.pnlcomm
-
-                    # Calculate exit price from PnL
-                    if size != 0:
-                        exit_price = entry_price + (pnl / abs(size)) + (
-                            t.commission / abs(size) if hasattr(t, 'commission') else 0
-                        )
+                    
+                    # Extract size and exit price from history if available
+                    if hasattr(t, 'history') and t.history:
+                        try:
+                            # First history update is the entry
+                            entry_update = t.history[0]
+                            size = abs(entry_update.status.size)
+                            
+                            # Average entry price is t.price
+                            entry_price = t.price
+                            
+                            # Last history update is the exit
+                            exit_update = t.history[-1]
+                            exit_price = exit_update.event.price
+                            pnl = t.pnlcomm
+                            pnl_pct = (pnl / (size * entry_price)) * 100 if (size != 0 and entry_price != 0) else 0.0
+                        except Exception:
+                            # Fallback if history extraction fails
+                            size = 0.0
+                            entry_price = t.price
+                            exit_price = entry_price
+                            pnl = t.pnlcomm
+                            pnl_pct = 0.0
                     else:
+                        size = 0.0
+                        entry_price = t.price
                         exit_price = entry_price
-
-                    pnl_pct = (pnl / (abs(size) * entry_price)) * 100 if (size != 0 and entry_price != 0) else 0
+                        pnl = t.pnlcomm
+                        pnl_pct = 0.0
 
                     trades.append({
                         "entry_date": entry_dt.strftime("%Y-%m-%d"),
                         "exit_date": exit_dt.strftime("%Y-%m-%d"),
-                        "size": float(abs(size)),
+                        "size": float(size),
                         "entry_price": round(float(entry_price), 4),
                         "exit_price": round(float(exit_price), 4),
                         "pnl": round(float(pnl), 2),

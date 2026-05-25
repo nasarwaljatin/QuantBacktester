@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import { useBacktestStore } from "@/lib/store";
 import type { TradeRecord } from "@/types/backtest";
 
 interface TradeLogTableProps {
@@ -12,6 +13,7 @@ const PAGE_SIZE = 20;
 
 export default function TradeLogTable({ trades }: TradeLogTableProps) {
   const [page, setPage] = useState(0);
+  const currency = useBacktestStore((s) => s.currency);
   const totalPages = Math.ceil(trades.length / PAGE_SIZE);
   const paginated = trades.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
@@ -50,11 +52,11 @@ export default function TradeLogTable({ trades }: TradeLogTableProps) {
                 <td className="py-2.5 px-3 text-gray-500">{page * PAGE_SIZE + i + 1}</td>
                 <td className="py-2.5 px-3 text-gray-300 font-mono text-xs">{trade.entry_date}</td>
                 <td className="py-2.5 px-3 text-gray-300 font-mono text-xs">{trade.exit_date}</td>
-                <td className="py-2.5 px-3 text-right text-gray-300">{trade.size.toFixed(0)}</td>
-                <td className="py-2.5 px-3 text-right text-gray-300 font-mono">${trade.entry_price.toFixed(2)}</td>
-                <td className="py-2.5 px-3 text-right text-gray-300 font-mono">${trade.exit_price.toFixed(2)}</td>
+                <td className="py-2.5 px-3 text-right text-gray-300">{trade.size}</td>
+                <td className="py-2.5 px-3 text-right text-gray-300 font-mono">{currency}{trade.entry_price.toFixed(2)}</td>
+                <td className="py-2.5 px-3 text-right text-gray-300 font-mono">{currency}{trade.exit_price.toFixed(2)}</td>
                 <td className={`py-2.5 px-3 text-right font-semibold font-mono ${trade.pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {trade.pnl >= 0 ? "+" : ""}${trade.pnl.toFixed(2)}
+                  {trade.pnl >= 0 ? "+" : ""}{currency}{trade.pnl.toFixed(2)}
                 </td>
                 <td className={`py-2.5 px-3 text-right font-mono ${trade.pnl_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                   {trade.pnl_pct >= 0 ? "+" : ""}{trade.pnl_pct.toFixed(2)}%

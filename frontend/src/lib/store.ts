@@ -21,6 +21,10 @@ const DEFAULT_STRATEGY = `class UserStrategy(bt.Strategy):
 `;
 
 interface BacktestStore {
+  // Currency selection
+  currency: string;
+  setCurrency: (currency: string) => void;
+
   // Strategy editor
   strategyCode: string;
   setStrategyCode: (code: string) => void;
@@ -54,6 +58,9 @@ interface BacktestStore {
 }
 
 export const useBacktestStore = create<BacktestStore>((set) => ({
+  currency: "$",
+  setCurrency: (currency) => set({ currency }),
+
   strategyCode: DEFAULT_STRATEGY,
   setStrategyCode: (code) => set({ strategyCode: code }),
 
