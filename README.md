@@ -123,6 +123,7 @@ class UserStrategy(bt.Strategy):
 | Strategy | Description |
 |----------|-------------|
 | **SMA Crossover** | Buy when 50-day SMA crosses above 200-day SMA |
+| **EMA Crossover (3/30)** | Buy when 3-period EMA crosses above 30-period EMA |
 | **RSI Mean Reversion** | Buy when RSI(14) < 30, sell when > 70 |
 | **Bollinger Bands** | Buy below lower band, sell above upper band |
 | **MACD** | Buy on MACD/signal line bullish crossover |

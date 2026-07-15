@@ -11,8 +11,28 @@ import { useBacktestStore } from "@/lib/store";
 
 const STRATEGY_CARDS = [
   {
-    name: "3/30 EMA Crossover",
-    description: "Buy when 3 EMA crosses above 30 EMA, sell on cross below",
+    name: "SMA Crossover",
+    description: "Buy when fast SMA crosses above slow SMA, sell on cross below",
+    icon: "📈",
+    code: `class UserStrategy(bt.Strategy):
+    params = dict(fast=50, slow=200)
+
+    def __init__(self):
+        self.fast_ma = bt.ind.SMA(period=self.p.fast)
+        self.slow_ma = bt.ind.SMA(period=self.p.slow)
+        self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
+
+    def next(self):
+        if not self.position:
+            if self.crossover > 0:
+                self.buy()
+        elif self.crossover < 0:
+            self.close()
+`,
+  },
+  {
+    name: "EMA Crossover (3/30)",
+    description: "Buy when 3-period EMA crosses above 30-period EMA, sell on cross below",
     icon: "📈",
     code: `class UserStrategy(bt.Strategy):
     params = dict(fast=3, slow=30)
@@ -146,7 +166,7 @@ export default function Home() {
             <h2 className="text-2xl font-bold text-white mb-2">Example Strategies</h2>
             <p className="text-sm text-gray-500">Click any card to load it into the editor</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {STRATEGY_CARDS.map((card) => (
               <button
                 key={card.name}

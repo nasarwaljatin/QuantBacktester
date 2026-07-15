@@ -9,8 +9,8 @@ from app.engine.strategies.bollinger_bands import BollingerBandsStrategy, TEMPLA
 from app.engine.strategies.macd import MACDStrategy, TEMPLATE_CODE as MACD_TEMPLATE
 
 STRATEGY_TEMPLATES = {
-    "ema_crossover": {"name": "3/30 EMA Crossover", "code": EMA_TEMPLATE},
     "sma_crossover": {"name": "SMA Crossover", "code": SMA_TEMPLATE},
+    "ema_crossover": {"name": "EMA Crossover (3/30)", "code": EMA_TEMPLATE},
     "rsi_mean_reversion": {"name": "RSI Mean Reversion", "code": RSI_TEMPLATE},
     "bollinger_bands": {"name": "Bollinger Bands", "code": BB_TEMPLATE},
     "macd": {"name": "MACD", "code": MACD_TEMPLATE},

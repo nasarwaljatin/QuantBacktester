@@ -5,11 +5,11 @@ import { create } from "zustand";
 import type { BacktestConfig } from "@/types/backtest";
 
 const DEFAULT_STRATEGY = `class UserStrategy(bt.Strategy):
-    params = dict(fast=3, slow=30)
+    params = dict(fast=50, slow=200)
 
     def __init__(self):
-        self.fast_ma = bt.ind.EMA(period=self.p.fast)
-        self.slow_ma = bt.ind.EMA(period=self.p.slow)
+        self.fast_ma = bt.ind.SMA(period=self.p.fast)
+        self.slow_ma = bt.ind.SMA(period=self.p.slow)
         self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
 
     def next(self):

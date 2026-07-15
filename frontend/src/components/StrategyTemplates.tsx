@@ -5,14 +5,14 @@ import { useState } from "react";
 import { useBacktestStore } from "@/lib/store";
 
 const TEMPLATES: Record<string, { name: string; code: string }> = {
-  ema_crossover: {
-    name: "3/30 EMA Crossover",
+  sma_crossover: {
+    name: "SMA Crossover",
     code: `class UserStrategy(bt.Strategy):
-    params = dict(fast=3, slow=30)
+    params = dict(fast=50, slow=200)
 
     def __init__(self):
-        self.fast_ma = bt.ind.EMA(period=self.p.fast)
-        self.slow_ma = bt.ind.EMA(period=self.p.slow)
+        self.fast_ma = bt.ind.SMA(period=self.p.fast)
+        self.slow_ma = bt.ind.SMA(period=self.p.slow)
         self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
 
     def next(self):
@@ -23,14 +23,14 @@ const TEMPLATES: Record<string, { name: string; code: string }> = {
             self.close()
 `,
   },
-  sma_crossover: {
-    name: "SMA Crossover",
+  ema_crossover: {
+    name: "EMA Crossover (3/30)",
     code: `class UserStrategy(bt.Strategy):
-    params = dict(fast=50, slow=200)
+    params = dict(fast=3, slow=30)
 
     def __init__(self):
-        self.fast_ma = bt.ind.SMA(period=self.p.fast)
-        self.slow_ma = bt.ind.SMA(period=self.p.slow)
+        self.fast_ma = bt.ind.EMA(period=self.p.fast)
+        self.slow_ma = bt.ind.EMA(period=self.p.slow)
         self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
 
     def next(self):
@@ -100,7 +100,7 @@ const TEMPLATES: Record<string, { name: string; code: string }> = {
 
 export default function StrategyTemplates() {
   const setStrategyCode = useBacktestStore((s) => s.setStrategyCode);
-  const [selected, setSelected] = useState("ema_crossover");
+  const [selected, setSelected] = useState("sma_crossover");
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const key = e.target.value;
