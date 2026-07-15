@@ -9,11 +9,11 @@ import pandas as pd
 
 # Default strategy template shown to users in the editor
 DEFAULT_STRATEGY_CODE = '''class UserStrategy(bt.Strategy):
-    params = dict(fast=50, slow=200)
+    params = dict(fast=3, slow=30)
 
     def __init__(self):
-        self.fast_ma = bt.ind.SMA(period=self.p.fast)
-        self.slow_ma = bt.ind.SMA(period=self.p.slow)
+        self.fast_ma = bt.ind.EMA(period=self.p.fast)
+        self.slow_ma = bt.ind.EMA(period=self.p.slow)
         self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
 
     def next(self):
