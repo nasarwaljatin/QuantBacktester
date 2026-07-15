@@ -40,10 +40,12 @@ async def submit_backtest(
             # Dispatch Celery task
             task = run_backtest_task.delay(
                 strategy_code=request.strategy_code,
-                ticker=request.ticker.upper(),
+                ticker=request.ticker,
                 start_date=request.start_date.isoformat(),
                 end_date=request.end_date.isoformat(),
                 config_dict=config_dict,
+                tickers=request.tickers,
+                ticker_weights=request.ticker_weights,
             )
             task_id = task.id
             status = "PENDING"
@@ -55,17 +57,20 @@ async def submit_backtest(
                 run_backtest_local,
                 task_id=task_id,
                 strategy_code=request.strategy_code,
-                ticker=request.ticker.upper(),
+                ticker=request.ticker,
                 start_date=request.start_date.isoformat(),
                 end_date=request.end_date.isoformat(),
                 config_dict=config_dict,
+                tickers=request.tickers,
+                ticker_weights=request.ticker_weights,
             )
 
         # Create DB record
         db_record = BacktestResult(
             task_id=task_id,
             status=status,
-            ticker=request.ticker.upper(),
+            ticker=request.ticker,
+            tickers=request.tickers,
             strategy_code=request.strategy_code,
             start_date=request.start_date.isoformat(),
             end_date=request.end_date.isoformat(),
@@ -125,6 +130,8 @@ async def get_backtest_result(
                 "task_id": task_id,
                 "status": "success",
                 "ticker": db_record.ticker,
+                "tickers": db_record.tickers,
+                "ticker_weights": result.get("ticker_weights", {}),
                 "start_date": db_record.start_date,
                 "end_date": db_record.end_date,
                 "equity_curve": result.get("equity_curve", []),
@@ -168,6 +175,8 @@ async def get_backtest_result(
             "task_id": task_id,
             "status": "success",
             "ticker": db_record.ticker if db_record else "",
+            "tickers": db_record.tickers if db_record else None,
+            "ticker_weights": result.get("ticker_weights", {}),
             "start_date": db_record.start_date if db_record else "",
             "end_date": db_record.end_date if db_record else "",
             "equity_curve": result.get("equity_curve", []),

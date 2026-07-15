@@ -10,7 +10,9 @@ export interface BacktestConfig {
 
 export interface BacktestRequest {
   strategy_code: string;
-  ticker: string;
+  ticker?: string; // Deprecated, use tickers
+  tickers?: string[];
+  ticker_weights?: Record<string, number>;
   start_date: string;
   end_date: string;
   config: BacktestConfig;
@@ -29,6 +31,7 @@ export interface TradeRecord {
   exit_price: number;
   pnl: number;
   pnl_pct: number;
+  ticker?: string;
 }
 
 export interface PerformanceMetrics {
@@ -57,6 +60,8 @@ export interface BacktestResponse {
   task_id: string;
   status: string;
   ticker?: string;
+  tickers?: string[];
+  ticker_weights?: Record<string, number>;
   start_date?: string;
   end_date?: string;
   equity_curve?: EquityCurvePoint[];

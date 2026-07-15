@@ -3,7 +3,7 @@
 
 from datetime import date
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from app.schemas.metrics import PerformanceMetrics
 
 
@@ -44,11 +44,18 @@ class BacktestRequest(BaseModel):
         min_length=10,
         description="Python source code defining a UserStrategy class extending bt.Strategy",
     )
-    ticker: str = Field(
-        ...,
-        min_length=1,
+    ticker: Optional[str] = Field(
+        default=None,
         max_length=20,
-        description="Stock ticker symbol (e.g. AAPL, RELIANCE.NS)",
+        description="Stock ticker symbol (e.g. AAPL, RELIANCE.NS) - deprecated, use tickers instead",
+    )
+    tickers: Optional[List[str]] = Field(
+        default=None,
+        description="List of stock ticker symbols for portfolio backtesting",
+    )
+    ticker_weights: Optional[Dict[str, float]] = Field(
+        default=None,
+        description="Target allocations/weights per ticker (must sum to 100 or be proportions)",
     )
     start_date: date = Field(
         ...,
@@ -62,6 +69,24 @@ class BacktestRequest(BaseModel):
         default_factory=BacktestConfig,
         description="Backtest configuration parameters",
     )
+
+    @model_validator(mode="after")
+    def validate_tickers(self) -> "BacktestRequest":
+        if not self.ticker and not self.tickers:
+            raise ValueError("Either 'ticker' or 'tickers' must be specified.")
+        if not self.tickers and self.ticker:
+            self.tickers = [self.ticker]
+        if self.tickers:
+            self.tickers = [t.upper() for t in self.tickers]
+            # Set default single ticker for backward compatibility in DB if not set
+            if not self.ticker:
+                self.ticker = self.tickers[0]
+        if self.ticker_weights:
+            self.ticker_weights = {k.upper(): v for k, v in self.ticker_weights.items()}
+            for t in self.ticker_weights:
+                if t not in self.tickers:
+                    raise ValueError(f"Weight specified for ticker '{t}' not in tickers list.")
+        return self
 
 
 class EquityCurvePoint(BaseModel):
@@ -81,6 +106,7 @@ class TradeRecord(BaseModel):
     exit_price: float
     pnl: float
     pnl_pct: float
+    ticker: Optional[str] = None
 
 
 class MonteCarloResult(BaseModel):
@@ -112,6 +138,8 @@ class BacktestResponse(BaseModel):
     task_id: str
     status: str
     ticker: Optional[str] = None
+    tickers: Optional[List[str]] = None
+    ticker_weights: Optional[Dict[str, float]] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     equity_curve: Optional[List[EquityCurvePoint]] = None

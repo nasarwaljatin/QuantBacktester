@@ -16,6 +16,7 @@ export default function TradeLogTable({ trades }: TradeLogTableProps) {
   const currency = useBacktestStore((s) => s.currency);
   const totalPages = Math.ceil(trades.length / PAGE_SIZE);
   const paginated = trades.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const showAsset = trades.some((t) => t.ticker && t.ticker !== "DEFAULT");
 
   return (
     <div className="bg-gray-800/40 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-6 shadow-xl">
@@ -34,6 +35,9 @@ export default function TradeLogTable({ trades }: TradeLogTableProps) {
           <thead>
             <tr className="border-b border-gray-700/50">
               <th className="text-left py-3 px-3 text-xs font-medium text-gray-400 uppercase tracking-wider">#</th>
+              {showAsset && (
+                <th className="text-left py-3 px-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Asset</th>
+              )}
               <th className="text-left py-3 px-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Entry Date</th>
               <th className="text-left py-3 px-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Exit Date</th>
               <th className="text-right py-3 px-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Size</th>
@@ -50,6 +54,9 @@ export default function TradeLogTable({ trades }: TradeLogTableProps) {
                 className="border-b border-gray-800/50 hover:bg-gray-700/20 transition-colors"
               >
                 <td className="py-2.5 px-3 text-gray-500">{page * PAGE_SIZE + i + 1}</td>
+                {showAsset && (
+                  <td className="py-2.5 px-3 text-cyan-400 font-semibold text-xs">{trade.ticker}</td>
+                )}
                 <td className="py-2.5 px-3 text-gray-300 font-mono text-xs">{trade.entry_date}</td>
                 <td className="py-2.5 px-3 text-gray-300 font-mono text-xs">{trade.exit_date}</td>
                 <td className="py-2.5 px-3 text-right text-gray-300">{trade.size}</td>

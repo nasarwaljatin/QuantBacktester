@@ -11,15 +11,17 @@ from app.engine.strategy_sandbox import run_cerebro_with_timeout
 
 def run_backtest(
     strategy_class: type,
-    ohlcv_df: pd.DataFrame,
+    ohlcv_data: pd.DataFrame | dict[str, pd.DataFrame],
     config: dict[str, Any],
+    ticker_weights: dict[str, float] = None,
 ) -> dict[str, Any]:
     """Run a backtest using Backtrader and return structured results.
 
     Args:
         strategy_class: A bt.Strategy subclass to backtest.
-        ohlcv_df: DataFrame with columns [date, open, high, low, close, volume].
+        ohlcv_data: Single DataFrame or dict of {ticker: DataFrame} with columns [date, open, high, low, close, volume].
         config: Dict with initial_capital, commission, slippage.
+        ticker_weights: Dict of {ticker: weight_pct} for portfolio sizing.
 
     Returns:
         Dict with equity_curve, trades, and analyzer_results.
@@ -27,6 +29,11 @@ def run_backtest(
     initial_capital = config.get("initial_capital", 100000.0)
     commission = config.get("commission", 0.001)
     slippage = config.get("slippage", 0.0005)
+
+    if isinstance(ohlcv_data, dict):
+        ohlcv_dfs = ohlcv_data
+    else:
+        ohlcv_dfs = {"DEFAULT": ohlcv_data}
 
     # Create Cerebro engine
     cerebro = bt.Cerebro(tradehistory=True)
@@ -37,36 +44,56 @@ def run_backtest(
     if slippage > 0:
         cerebro.broker.set_slippage_perc(slippage)
 
-    # Prepare data feed
-    df = ohlcv_df.copy()
-    df["date"] = pd.to_datetime(df["date"])
-    df = df.set_index("date")
-    df = df.sort_index()
-    df.columns = [c.lower() for c in df.columns]
+    # Prepare and add data feeds
+    for name, ohlcv_df in ohlcv_dfs.items():
+        df = ohlcv_df.copy()
+        df["date"] = pd.to_datetime(df["date"])
+        df = df.set_index("date")
+        df = df.sort_index()
+        df.columns = [c.lower() for c in df.columns]
 
-    data_feed = bt.feeds.PandasData(dataname=df)
-    cerebro.adddata(data_feed)
+        data_feed = bt.feeds.PandasData(dataname=df)
+        cerebro.adddata(data_feed, name=name)
+
+    # Determine normalised weights for custom position sizing
+    tickers = list(ohlcv_dfs.keys())
+    if ticker_weights:
+        total_w = sum(ticker_weights.values())
+        if total_w > 0:
+            weights = {k.upper(): v / total_w for k, v in ticker_weights.items()}
+        else:
+            weights = {k: 1.0 / len(tickers) for k in tickers}
+    else:
+        weights = {k: 1.0 / len(tickers) for k in tickers}
 
     # Apply position sizing logic at the engine execution layer
     strategy_class._qbt_allocation_pct = config.get("allocation_pct", 100.0)
+    strategy_class._qbt_weights = weights
 
     if not getattr(strategy_class.buy, "_is_qbt_patched", False):
         original_buy = strategy_class.buy
 
         def custom_buy(self, *args, **kwargs):
-            # 1. Single-position mode rules:
-            # Only one position can be active at a time.
-            if self.position.size > 0:
+            # Identify which data feed is being traded
+            data = kwargs.get('data')
+            if data is None:
+                if args and isinstance(args[0], bt.DataBase):
+                    data = args[0]
+                else:
+                    data = self.data
+            pos_size = self.getposition(data).size
+
+            # 1. Single-position mode rules (per asset):
+            if pos_size > 0:
                 # Long position active, block additional buys (no scaling in)
                 return None
-            elif self.position.size < 0:
+            elif pos_size < 0:
                 # Short position active, allow buy to cover/close
                 return original_buy(self, *args, **kwargs)
 
             # 2. Calculate the order size using the selected allocation percentage
-            # of currently available cash.
+            # of currently available cash scaled by asset weight.
             cash = self.broker.getcash()
-            data = kwargs.get('data') or args[0] if (args and isinstance(args[0], bt.DataBase)) else self.data
             price = data.close[0]
 
             if price <= 0:
@@ -74,7 +101,11 @@ def run_backtest(
 
             alloc_pct = getattr(self, "_qbt_allocation_pct", 100.0)
             allocation = alloc_pct / 100.0
-            position_value = cash * allocation
+
+            weights = getattr(self, "_qbt_weights", {})
+            asset_weight = weights.get(data._name, 1.0)
+
+            position_value = cash * allocation * asset_weight
             size = int(position_value // price)
 
             # 3. Only place a buy order if size > 0.
@@ -103,7 +134,7 @@ def run_backtest(
     strategy_result = results[0]
 
     # Extract equity curve from the broker value observer
-    equity_curve = _extract_equity_curve(strategy_result, df)
+    equity_curve = _extract_equity_curve(strategy_result, ohlcv_dfs)
 
     # Extract trades
     trades = _extract_trades(strategy_result)
@@ -119,19 +150,24 @@ def run_backtest(
 
 
 def _extract_equity_curve(
-    strategy: bt.Strategy, df: pd.DataFrame
+    strategy: bt.Strategy, ohlcv_dfs: dict[str, pd.DataFrame]
 ) -> list[dict[str, Any]]:
     """Extract portfolio value series from the strategy's observers.
 
     Args:
         strategy: Completed Backtrader strategy instance.
-        df: Original OHLCV DataFrame for date reference.
+        ohlcv_dfs: Original OHLCV dict for date reference.
 
     Returns:
         List of {date, value} dicts.
     """
     equity_curve = []
-    dates = df.index.tolist()
+    
+    # Gather all unique sorted dates across all data feeds
+    all_dates = set()
+    for df in ohlcv_dfs.values():
+        all_dates.update(df["date"].tolist())
+    dates = sorted(list(all_dates))
 
     # Get portfolio values from the value observer
     try:
@@ -142,12 +178,16 @@ def _extract_equity_curve(
                 if hasattr(dt, "strftime"):
                     date_str = dt.strftime("%Y-%m-%d")
                 else:
-                    date_str = str(dt)
+                    date_str = str(dt)[:10]
                 equity_curve.append({"date": date_str, "value": float(val)})
     except (AttributeError, IndexError):
         # Fallback: use broker value at end
+        fallback_date = "unknown"
+        if dates:
+            dt = dates[-1]
+            fallback_date = dt.strftime("%Y-%m-%d") if hasattr(dt, "strftime") else str(dt)[:10]
         equity_curve.append({
-            "date": dates[-1].strftime("%Y-%m-%d") if dates else "unknown",
+            "date": fallback_date,
             "value": float(strategy.broker.getvalue()),
         })
 
@@ -178,6 +218,7 @@ def _extract_trades(strategy: bt.Strategy) -> list[dict[str, Any]]:
                 if t.isclosed:
                     entry_dt = bt.num2date(t.dtopen)
                     exit_dt = bt.num2date(t.dtclose)
+                    ticker = t.data._name if hasattr(t, "data") and hasattr(t.data, "_name") else "unknown"
                     
                     # Extract size and exit price from history if available
                     if hasattr(t, 'history') and t.history:
@@ -216,6 +257,7 @@ def _extract_trades(strategy: bt.Strategy) -> list[dict[str, Any]]:
                         "exit_price": round(float(exit_price), 4),
                         "pnl": round(float(pnl), 2),
                         "pnl_pct": round(float(pnl_pct), 4),
+                        "ticker": ticker,
                     })
 
     return trades

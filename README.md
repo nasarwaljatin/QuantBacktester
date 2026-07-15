@@ -113,8 +113,41 @@ class UserStrategy(bt.Strategy):
 - `__init__()` — Define indicators
 - `next()` — Called on each bar; implement trading logic
 - `self.buy()` / `self.sell()` / `self.close()` — Execute orders
-- `self.position` — Current position info
-- `self.data.close[0]` — Current close price
+- `self.position` — Current position info of the first data feed
+- `self.getposition(data)` — Current position info of a specific data feed
+- `self.data.close[0]` — Current close price of the first data feed
+- `data.close[0]` — Current close price of a specific data feed
+
+### Multi-Asset Strategy Logic
+
+For multi-asset portfolio backtesting, you can select multiple tickers in the backtest configuration form. The data feeds will be added to the strategy and can be accessed via:
+
+* `self.datas` — A list of all data feeds loaded in the system.
+* `self.datas[i]` — Access individual data feeds.
+* `self.getdatabyname(name)` — Retrieve a data feed by its ticker symbol (e.g., `self.getdatabyname('AAPL')`).
+* Loop through all data feeds to perform portfolio-wide checks or rebalancing:
+
+```python
+class MultiAssetRebalance(bt.Strategy):
+    def __init__(self):
+        # Create indicators for each loaded asset
+        self.mas = {d: bt.ind.SMA(d, period=50) for d in self.datas}
+
+    def next(self):
+        for data in self.datas:
+            pos = self.getposition(data).size
+            ma = self.mas[data][0]
+            close = data.close[0]
+            
+            if not pos and close > ma:
+                # Buy order sized automatically based on the asset's weight
+                self.buy(data=data)
+            elif pos > 0 and close < ma:
+                self.close(data=data)
+```
+
+> [!NOTE]
+> When executing orders in a multi-asset strategy, you must specify the `data` parameter (e.g. `self.buy(data=data)`). If omitted, Backtrader defaults to trading the first asset (`self.datas[0]`).
 
 ---
 

@@ -8,7 +8,7 @@ import { submitBacktest, getBacktestResult } from "@/lib/api";
 export default function RunButton() {
   const router = useRouter();
   const {
-    strategyCode, ticker, startDate, endDate, config,
+    strategyCode, ticker, tickers, tickerWeights, startDate, endDate, config,
     isRunning, setIsRunning, runStep, setRunStep,
     error, setError, setTaskId,
   } = useBacktestStore();
@@ -18,11 +18,18 @@ export default function RunButton() {
     setIsRunning(true);
     setRunStep("Submitting backtest...");
 
+    // Filter weights: only pass them if at least one weight is > 0
+    const activeWeights = Object.keys(tickerWeights).some(k => tickerWeights[k] > 0)
+      ? tickerWeights
+      : undefined;
+
     try {
       // Submit backtest
       const { task_id } = await submitBacktest({
         strategy_code: strategyCode,
         ticker,
+        tickers,
+        ticker_weights: activeWeights,
         start_date: startDate,
         end_date: endDate,
         config,

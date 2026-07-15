@@ -23,7 +23,8 @@ class BacktestResult(Base):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="PENDING"
     )
-    ticker: Mapped[str] = mapped_column(String(20), nullable=False)
+    ticker: Mapped[str] = mapped_column(String(255), nullable=True)
+    tickers: Mapped[list] = mapped_column(JSON, nullable=True)
     strategy_code: Mapped[str] = mapped_column(Text, nullable=False)
     start_date: Mapped[str] = mapped_column(String(10), nullable=False)
     end_date: Mapped[str] = mapped_column(String(10), nullable=False)

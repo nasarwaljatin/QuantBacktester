@@ -31,7 +31,11 @@ interface BacktestStore {
 
   // Ticker selection
   ticker: string;
+  tickers: string[];
   setTicker: (ticker: string) => void;
+  setTickers: (tickers: string[]) => void;
+  tickerWeights: Record<string, number>;
+  setTickerWeights: (weights: Record<string, number>) => void;
 
   // Date range
   startDate: string;
@@ -65,7 +69,11 @@ export const useBacktestStore = create<BacktestStore>((set) => ({
   setStrategyCode: (code) => set({ strategyCode: code }),
 
   ticker: "AAPL",
-  setTicker: (ticker) => set({ ticker }),
+  tickers: ["AAPL"],
+  tickerWeights: {},
+  setTicker: (ticker) => set({ ticker, tickers: [ticker] }),
+  setTickers: (tickers) => set({ tickers, ticker: tickers[0] || "" }),
+  setTickerWeights: (tickerWeights) => set({ tickerWeights }),
 
   startDate: "2020-01-01",
   endDate: "2024-01-01",

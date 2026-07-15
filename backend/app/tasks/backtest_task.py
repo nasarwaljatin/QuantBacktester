@@ -3,6 +3,7 @@
 
 import json
 from datetime import date, datetime
+from typing import Optional
 from fastapi import HTTPException
 from app.tasks.celery_app import celery_app
 from app.database import SessionLocal
@@ -18,6 +19,8 @@ def run_backtest_task(
     start_date: str,
     end_date: str,
     config_dict: dict,
+    tickers: Optional[list] = None,
+    ticker_weights: Optional[dict] = None,
 ) -> dict:
     """Celery task that runs a full backtest pipeline.
 
@@ -27,6 +30,8 @@ def run_backtest_task(
         start_date: ISO format start date string.
         end_date: ISO format end date string.
         config_dict: Dict with initial_capital, commission, slippage.
+        tickers: Optional list of stock ticker symbols.
+        ticker_weights: Optional weights allocation per ticker.
 
     Returns:
         Dict with complete backtest results or error information.
@@ -52,6 +57,7 @@ def run_backtest_task(
                 task_id=task_id,
                 status="RUNNING",
                 ticker=ticker,
+                tickers=tickers,
                 strategy_code=strategy_code,
                 start_date=start_date,
                 end_date=end_date,
@@ -74,6 +80,8 @@ def run_backtest_task(
             end_date=end,
             config=config_dict,
             db=db,
+            tickers=tickers,
+            ticker_weights=ticker_weights,
         )
 
         # Update state: computing metrics
@@ -117,6 +125,8 @@ def run_backtest_local(
     start_date: str,
     end_date: str,
     config_dict: dict,
+    tickers: Optional[list] = None,
+    ticker_weights: Optional[dict] = None,
 ) -> dict:
     """Run a backtest synchronously in a local thread (FastAPI background task).
 
@@ -127,6 +137,8 @@ def run_backtest_local(
         start_date: ISO format start date string.
         end_date: ISO format end date string.
         config_dict: Dict with initial_capital, commission, slippage.
+        tickers: Optional list of stock ticker symbols.
+        ticker_weights: Optional weights allocation per ticker.
 
     Returns:
         Dict with complete backtest results.
@@ -148,6 +160,7 @@ def run_backtest_local(
                 task_id=task_id,
                 status="RUNNING",
                 ticker=ticker,
+                tickers=tickers,
                 strategy_code=strategy_code,
                 start_date=start_date,
                 end_date=end_date,
@@ -167,6 +180,8 @@ def run_backtest_local(
             end_date=end,
             config=config_dict,
             db=db,
+            tickers=tickers,
+            ticker_weights=ticker_weights,
         )
 
         # Store result in DB
