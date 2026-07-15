@@ -18,7 +18,7 @@ export default function BacktestConfig() {
   ];
 
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className="grid grid-cols-5 gap-3">
       <div>
         <label htmlFor="currency" className="block text-xs font-medium text-gray-400 mb-1.5">
           Currency
@@ -78,6 +78,21 @@ export default function BacktestConfig() {
           min={0}
           max={5}
           step={0.01}
+          className="w-full bg-gray-800/80 border border-gray-600/50 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 backdrop-blur-sm transition-all"
+        />
+      </div>
+      <div>
+        <label htmlFor="allocation-pct" className="block text-xs font-medium text-gray-400 mb-1.5">
+          Capital Allocation (%)
+        </label>
+        <input
+          id="allocation-pct"
+          type="number"
+          value={config.allocation_pct ?? 100}
+          onChange={(e) => setConfig({ allocation_pct: Number(e.target.value) })}
+          min={1}
+          max={100}
+          step={1}
           className="w-full bg-gray-800/80 border border-gray-600/50 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 backdrop-blur-sm transition-all"
         />
       </div>

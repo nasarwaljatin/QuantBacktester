@@ -47,6 +47,45 @@ def run_backtest(
     data_feed = bt.feeds.PandasData(dataname=df)
     cerebro.adddata(data_feed)
 
+    # Apply position sizing logic at the engine execution layer
+    strategy_class._qbt_allocation_pct = config.get("allocation_pct", 100.0)
+
+    if not getattr(strategy_class.buy, "_is_qbt_patched", False):
+        original_buy = strategy_class.buy
+
+        def custom_buy(self, *args, **kwargs):
+            # 1. Single-position mode rules:
+            # Only one position can be active at a time.
+            if self.position.size > 0:
+                # Long position active, block additional buys (no scaling in)
+                return None
+            elif self.position.size < 0:
+                # Short position active, allow buy to cover/close
+                return original_buy(self, *args, **kwargs)
+
+            # 2. Calculate the order size using the selected allocation percentage
+            # of currently available cash.
+            cash = self.broker.getcash()
+            data = kwargs.get('data') or args[0] if (args and isinstance(args[0], bt.DataBase)) else self.data
+            price = data.close[0]
+
+            if price <= 0:
+                return None
+
+            alloc_pct = getattr(self, "_qbt_allocation_pct", 100.0)
+            allocation = alloc_pct / 100.0
+            position_value = cash * allocation
+            size = int(position_value // price)
+
+            # 3. Only place a buy order if size > 0.
+            if size > 0:
+                kwargs['size'] = size
+                return original_buy(self, *args, **kwargs)
+            return None
+
+        custom_buy._is_qbt_patched = True
+        strategy_class.buy = custom_buy
+
     # Add strategy
     cerebro.addstrategy(strategy_class)
 

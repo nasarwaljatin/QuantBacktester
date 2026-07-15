@@ -132,6 +132,8 @@ async def get_backtest_result(
                 "trades": result.get("trades", []),
                 "metrics": result.get("metrics", {}),
                 "monte_carlo": result.get("monte_carlo", {}),
+                "allocation_pct": result.get("allocation_pct", 100.0),
+                "position_sizing": result.get("position_sizing", "cash_percentage"),
             }
 
         return {"task_id": task_id, "status": db_record.status.lower()}
@@ -173,6 +175,8 @@ async def get_backtest_result(
             "trades": result.get("trades", []),
             "metrics": result.get("metrics", {}),
             "monte_carlo": result.get("monte_carlo", {}),
+            "allocation_pct": result.get("allocation_pct", 100.0),
+            "position_sizing": result.get("position_sizing", "cash_percentage"),
         }
 
     return {"task_id": task_id, "status": task.state.lower()}

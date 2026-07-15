@@ -69,6 +69,8 @@ def execute_backtest(
         "metrics": metrics.model_dump(),
         "monte_carlo": monte_carlo,
         "analyzer_results": backtest_result["analyzer_results"],
+        "allocation_pct": config.get("allocation_pct", 100.0),
+        "position_sizing": "cash_percentage",
     }
 
 

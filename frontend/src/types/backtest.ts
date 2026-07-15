@@ -5,6 +5,7 @@ export interface BacktestConfig {
   initial_capital: number;
   commission: number;
   slippage: number;
+  allocation_pct: number;
 }
 
 export interface BacktestRequest {
@@ -65,6 +66,8 @@ export interface BacktestResponse {
   monte_carlo?: MonteCarloResult;
   error?: string;
   step?: string;
+  allocation_pct?: number;
+  position_sizing?: string;
 }
 
 export interface TickerResult {

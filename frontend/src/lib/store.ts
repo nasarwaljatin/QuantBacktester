@@ -76,6 +76,7 @@ export const useBacktestStore = create<BacktestStore>((set) => ({
     initial_capital: 100000,
     commission: 0.001,
     slippage: 0.0005,
+    allocation_pct: 100,
   },
   setConfig: (partial) =>
     set((state) => ({ config: { ...state.config, ...partial } })),

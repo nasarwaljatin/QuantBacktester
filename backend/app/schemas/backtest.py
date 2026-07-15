@@ -28,6 +28,12 @@ class BacktestConfig(BaseModel):
         le=0.05,
         description="Slippage rate per trade (e.g. 0.0005 = 0.05%)",
     )
+    allocation_pct: float = Field(
+        default=100.0,
+        ge=1.0,
+        le=100.0,
+        description="Capital allocation percentage (1 to 100)",
+    )
 
 
 class BacktestRequest(BaseModel):
@@ -114,6 +120,8 @@ class BacktestResponse(BaseModel):
     metrics: Optional[PerformanceMetrics] = None
     monte_carlo: Optional[MonteCarloResult] = None
     error: Optional[str] = None
+    allocation_pct: Optional[float] = None
+    position_sizing: Optional[str] = None
 
 
 class BacktestStatusResponse(BaseModel):
