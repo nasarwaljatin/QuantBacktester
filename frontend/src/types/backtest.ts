@@ -6,6 +6,8 @@ export interface BacktestConfig {
   commission: number;
   slippage: number;
   allocation_pct: number;
+  sizing_model?: string;
+  sizing_params?: Record<string, any>;
 }
 
 export interface BacktestRequest {

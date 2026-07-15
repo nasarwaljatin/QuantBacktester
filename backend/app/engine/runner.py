@@ -9,6 +9,109 @@ from typing import Any
 from app.engine.strategy_sandbox import run_cerebro_with_timeout
 
 
+class PortfolioSizer(bt.Sizer):
+    """Custom pluggable position sizer for multi-asset trading."""
+
+    params = (
+        ("sizing_model", "all_in"),
+        ("sizing_params", None),
+        ("allocation_pct", 100.0),
+        ("weights", None),
+    )
+
+    def _getsizing(self, comminfo, cash, data, isbuy):
+        if not isbuy:
+            # Sells return the current position size to cover/close
+            return self.strategy.getposition(data).size
+
+        model = self.p.sizing_model
+        params = self.p.sizing_params or {}
+        equity = self.broker.getvalue()
+        price = data.close[0]
+        
+        if price <= 0:
+            return 0
+
+        # Base allocation: allocation_pct * asset_weight
+        alloc_pct = self.p.allocation_pct
+        allocation = alloc_pct / 100.0
+        weights = self.p.weights or {}
+        asset_weight = weights.get(data._name, 1.0)
+
+        if model == "fixed_fractional":
+            risk_pct = params.get("risk_pct", 2.0)
+            allocated_val = equity * (risk_pct / 100.0) * asset_weight
+            size = int(allocated_val // price)
+        elif model == "volatility_targeted":
+            target_risk_pct = params.get("target_risk_pct", 1.0)
+            period = int(params.get("atr_period", 14))
+            
+            # Compute ATR
+            atr = self._get_atr(data, period)
+            if atr > 0:
+                allocated_val = equity * (target_risk_pct / 100.0) * asset_weight
+                size = int(allocated_val // atr)
+            else:
+                size = int((cash * allocation * asset_weight) // price)
+        elif model == "kelly":
+            multiplier = params.get("kelly_multiplier", 0.5)
+            max_fraction = params.get("max_fraction", 0.20)
+            def_win_rate = params.get("default_win_rate", 0.50)
+            def_win_loss = params.get("default_win_loss", 1.5)
+
+            win_rate, win_loss_ratio = self._get_trailing_metrics(def_win_rate, def_win_loss)
+            
+            kelly_pct = win_rate - (1.0 - win_rate) / win_loss_ratio
+            kelly_fraction = max(0.0, min(kelly_pct * multiplier, max_fraction))
+            
+            allocated_val = equity * kelly_fraction * asset_weight
+            size = int(allocated_val // price)
+        else:  # "all_in" / default
+            allocated_val = cash * allocation * asset_weight
+            size = int(allocated_val // price)
+
+        return max(0, size)
+
+    def _get_atr(self, data, period):
+        if len(data) < period + 1:
+            return data.close[0] * 0.02  # fallback to 2% of price
+        tr_sum = 0.0
+        for i in range(period):
+            idx = -i
+            high = data.high[idx]
+            low = data.low[idx]
+            prev_close = data.close[idx - 1]
+            tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
+            tr_sum += tr
+        return tr_sum / period
+
+    def _get_trailing_metrics(self, default_win_rate, default_win_loss):
+        trades_pnl = []
+        for trade in self.strategy._trades.values():
+            for t_list in trade.values():
+                for t in t_list:
+                    if t.isclosed:
+                        trades_pnl.append(t.pnlcomm)
+
+        if not trades_pnl:
+            return default_win_rate, default_win_loss
+
+        total = len(trades_pnl)
+        wins = [p for p in trades_pnl if p > 0]
+        losses = [p for p in trades_pnl if p < 0]
+
+        win_rate = len(wins) / total
+        
+        avg_win = sum(wins) / len(wins) if wins else 0.0
+        avg_loss = abs(sum(losses) / len(losses)) if losses else 0.0
+
+        win_loss_ratio = avg_win / avg_loss if avg_loss > 0 else default_win_loss
+        if win_loss_ratio <= 0:
+            win_loss_ratio = 0.001  # prevent division by zero
+
+        return win_rate, win_loss_ratio
+
+
 def run_backtest(
     strategy_class: type,
     ohlcv_data: pd.DataFrame | dict[str, pd.DataFrame],
@@ -66,8 +169,20 @@ def run_backtest(
     else:
         weights = {k: 1.0 / len(tickers) for k in tickers}
 
+    # Configure pluggable position sizer
+    sizing_model = config.get("sizing_model", "all_in")
+    sizing_params = config.get("sizing_params", {})
+    allocation_pct = config.get("allocation_pct", 100.0)
+
+    cerebro.addsizer(PortfolioSizer,
+        sizing_model=sizing_model,
+        sizing_params=sizing_params,
+        allocation_pct=allocation_pct,
+        weights=weights
+    )
+
     # Apply position sizing logic at the engine execution layer
-    strategy_class._qbt_allocation_pct = config.get("allocation_pct", 100.0)
+    strategy_class._qbt_allocation_pct = allocation_pct
     strategy_class._qbt_weights = weights
 
     if not getattr(strategy_class.buy, "_is_qbt_patched", False):
@@ -91,28 +206,15 @@ def run_backtest(
                 # Short position active, allow buy to cover/close
                 return original_buy(self, *args, **kwargs)
 
-            # 2. Calculate the order size using the selected allocation percentage
-            # of currently available cash scaled by asset weight.
-            cash = self.broker.getcash()
-            price = data.close[0]
-
-            if price <= 0:
+            # 2. Calculate the order size using the registered sizer
+            if 'size' not in kwargs:
+                size = self.getsizing(data, isbuy=True)
+                if size > 0:
+                    kwargs['size'] = size
+                    return original_buy(self, *args, **kwargs)
                 return None
 
-            alloc_pct = getattr(self, "_qbt_allocation_pct", 100.0)
-            allocation = alloc_pct / 100.0
-
-            weights = getattr(self, "_qbt_weights", {})
-            asset_weight = weights.get(data._name, 1.0)
-
-            position_value = cash * allocation * asset_weight
-            size = int(position_value // price)
-
-            # 3. Only place a buy order if size > 0.
-            if size > 0:
-                kwargs['size'] = size
-                return original_buy(self, *args, **kwargs)
-            return None
+            return original_buy(self, *args, **kwargs)
 
         custom_buy._is_qbt_patched = True
         strategy_class.buy = custom_buy

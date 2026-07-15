@@ -141,6 +141,8 @@ async def get_backtest_result(
                 "monte_carlo": result.get("monte_carlo", {}),
                 "allocation_pct": result.get("allocation_pct", 100.0),
                 "position_sizing": result.get("position_sizing", "cash_percentage"),
+                "sizing_model": result.get("sizing_model", "all_in"),
+                "sizing_params": result.get("sizing_params", {}),
             }
 
         return {"task_id": task_id, "status": db_record.status.lower()}
@@ -186,6 +188,8 @@ async def get_backtest_result(
             "monte_carlo": result.get("monte_carlo", {}),
             "allocation_pct": result.get("allocation_pct", 100.0),
             "position_sizing": result.get("position_sizing", "cash_percentage"),
+            "sizing_model": result.get("sizing_model", "all_in"),
+            "sizing_params": result.get("sizing_params", {}),
         }
 
     return {"task_id": task_id, "status": task.state.lower()}

@@ -34,6 +34,14 @@ class BacktestConfig(BaseModel):
         le=100.0,
         description="Capital allocation percentage (1 to 100)",
     )
+    sizing_model: str = Field(
+        default="all_in",
+        description="Position sizing model to use (all_in, fixed_fractional, volatility_targeted, kelly)",
+    )
+    sizing_params: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Parameters for the selected sizing model",
+    )
 
 
 class BacktestRequest(BaseModel):
@@ -150,6 +158,8 @@ class BacktestResponse(BaseModel):
     error: Optional[str] = None
     allocation_pct: Optional[float] = None
     position_sizing: Optional[str] = None
+    sizing_model: Optional[str] = None
+    sizing_params: Optional[Dict[str, Any]] = None
 
 
 class BacktestStatusResponse(BaseModel):

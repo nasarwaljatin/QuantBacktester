@@ -151,6 +151,39 @@ class MultiAssetRebalance(bt.Strategy):
 
 ---
 
+## Position Sizing Models
+
+The project supports pluggable position sizing models that determine the share size of execution orders based on account equity, asset volatility, or historical trade metrics:
+
+### 1. All-in (Default)
+Sizes orders based on a simple percentage allocation of currently available cash scaled by the asset's portfolio weight:
+\[\text{Size} = \frac{\text{Cash} \times \text{Allocation} \times \text{Asset Weight}}{\text{Price}}\]
+
+### 2. Fixed Fractional
+Risks a fixed percentage of total portfolio equity on each trade:
+\[\text{Size} = \frac{\text{Equity} \times \text{Risk \%} \times \text{Asset Weight}}{\text{Price}}\]
+- **Parameters**:
+  - `risk_pct` — The maximum percentage of total equity risked on a trade (default: `2.0%`).
+
+### 3. Volatility-Targeted
+Scales the position size inversely to the asset's recent Average True Range (ATR). Higher-volatility assets get smaller position sizes, leveling risk across products:
+\[\text{Size} = \frac{\text{Equity} \times \text{Target Risk \%} \times \text{Asset Weight}}{\text{ATR}(\text{period})}\]
+- **Parameters**:
+  - `target_risk_pct` — Target portfolio risk percentage (default: `1.0%`).
+  - `atr_period` — Lookback period for Average True Range calculation (default: `14` days).
+
+### 4. Kelly Criterion
+Sizes positions dynamically using the Kelly Criterion formula based on the trailing win rate and win-loss ratio of the strategy's completed trades:
+\[\text{Kelly \%} = \text{Win Rate} - \frac{1 - \text{Win Rate}}{\text{Win-Loss Ratio}}\]
+\[\text{Size} = \frac{\text{Equity} \times \max(0, \text{Kelly \%} \times \text{Multiplier}) \times \text{Asset Weight}}{\text{Price}}\]
+- **Parameters**:
+  - `kelly_multiplier` — Kelly fraction scale (e.g., `0.5` for Half-Kelly, default: `0.5`).
+  - `max_fraction` — Hard cap on equity allocation to prevent over-leveraging (default: `20.0%`).
+  - `default_win_rate` — Fallback win rate if no trailing trades exist (default: `0.50`).
+  - `default_win_loss` — Fallback win-loss ratio if no trailing trades exist (default: `1.5`).
+
+---
+
 ## Built-in Strategy Templates
 
 | Strategy | Description |

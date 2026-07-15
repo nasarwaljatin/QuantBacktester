@@ -82,6 +82,8 @@ def execute_backtest(
         "allocation_pct": config.get("allocation_pct", 100.0),
         "position_sizing": "cash_percentage",
         "ticker_weights": ticker_weights or {},
+        "sizing_model": config.get("sizing_model", "all_in"),
+        "sizing_params": config.get("sizing_params", {}),
     }
 
 
