@@ -11,15 +11,15 @@ import { useBacktestStore } from "@/lib/store";
 
 const STRATEGY_CARDS = [
   {
-    name: "SMA Crossover",
-    description: "Buy when fast SMA crosses above slow SMA, sell on cross below",
+    name: "3/30 EMA Crossover",
+    description: "Buy when 3 EMA crosses above 30 EMA, sell on cross below",
     icon: "📈",
     code: `class UserStrategy(bt.Strategy):
-    params = dict(fast=50, slow=200)
+    params = dict(fast=3, slow=30)
 
     def __init__(self):
-        self.fast_ma = bt.ind.SMA(period=self.p.fast)
-        self.slow_ma = bt.ind.SMA(period=self.p.slow)
+        self.fast_ma = bt.ind.EMA(period=self.p.fast)
+        self.slow_ma = bt.ind.EMA(period=self.p.slow)
         self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
 
     def next(self):

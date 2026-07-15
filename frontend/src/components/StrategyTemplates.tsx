@@ -5,6 +5,24 @@ import { useState } from "react";
 import { useBacktestStore } from "@/lib/store";
 
 const TEMPLATES: Record<string, { name: string; code: string }> = {
+  ema_crossover: {
+    name: "3/30 EMA Crossover",
+    code: `class UserStrategy(bt.Strategy):
+    params = dict(fast=3, slow=30)
+
+    def __init__(self):
+        self.fast_ma = bt.ind.EMA(period=self.p.fast)
+        self.slow_ma = bt.ind.EMA(period=self.p.slow)
+        self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
+
+    def next(self):
+        if not self.position:
+            if self.crossover > 0:
+                self.buy()
+        elif self.crossover < 0:
+            self.close()
+`,
+  },
   sma_crossover: {
     name: "SMA Crossover",
     code: `class UserStrategy(bt.Strategy):
@@ -82,7 +100,7 @@ const TEMPLATES: Record<string, { name: string; code: string }> = {
 
 export default function StrategyTemplates() {
   const setStrategyCode = useBacktestStore((s) => s.setStrategyCode);
-  const [selected, setSelected] = useState("sma_crossover");
+  const [selected, setSelected] = useState("ema_crossover");
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const key = e.target.value;
