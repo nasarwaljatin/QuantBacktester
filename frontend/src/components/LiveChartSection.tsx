@@ -84,6 +84,15 @@ export default function LiveChartSection() {
   const tvSymbol = mapSymbolToTradingView(chartTicker);
   const containerId = `tv-chart-${tvSymbol.replace(":", "-")}`;
 
+  // Detect if the ticker represents an Indian Stock Exchange equity
+  const isIndianStock = 
+    chartTicker.toUpperCase().endsWith(".NS") || 
+    chartTicker.toUpperCase().endsWith(".BO") ||
+    tvSymbol.startsWith("NSE:") ||
+    tvSymbol.startsWith("BSE:") ||
+    // Common Indian equities when typed without exchange suffixes
+    ["RELIANCE", "VEDL", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "SBIN", "BHARTIARTL", "ITC", "LT", "HINDUNILVR"].includes(chartTicker.toUpperCase().trim());
+
   // Initialize the inline TradingView widget dynamically via script element injection
   useEffect(() => {
     if (!tvSymbol) return;
@@ -208,6 +217,16 @@ export default function LiveChartSection() {
           </a>
         </div>
       </div>
+
+      {/* Indian market timeframe availability warning notice */}
+      {isIndianStock && (
+        <div className="mb-3 px-3 py-2 rounded bg-amber-500/10 border border-amber-500/25 text-[10px] text-amber-500 dark:text-amber-400 leading-normal flex items-start gap-2 shadow-sm">
+          <span className="shrink-0 text-xs select-none">💡</span>
+          <span>
+            <strong>Indian Market Note:</strong> Intraday timeframes (less than 1 Day, e.g. 1m, 30m, 1h) are restricted in embedded widgets by the exchange. To view live intraday charts for this asset, please click the <strong>External Link icon</strong> in the header to open the chart directly on TradingView.com.
+          </span>
+        </div>
+      )}
 
       <div className="relative w-full h-[300px] bg-gray-900/10 dark:bg-gray-950/20 rounded-xl overflow-hidden border border-gray-200/50 dark:border-gray-800/50">
         <div key={tvSymbol} id={containerId} className="w-full h-full" />
