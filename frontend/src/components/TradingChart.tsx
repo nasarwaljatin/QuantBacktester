@@ -54,12 +54,12 @@ export default function TradingChart({
   // Setup theme-based styles
   const isDark = theme === "dark";
   const colors = {
-    bgColor: isDark ? "rgba(17, 24, 39, 0.4)" : "#ffffff",
-    textColor: isDark ? "#9ca3af" : "#374151",
-    gridColor: isDark ? "rgba(75, 85, 99, 0.15)" : "#e5e7eb",
+    bgColor: "transparent",
+    textColor: "#9ca3af",
+    gridColor: "rgba(75, 85, 99, 0.15)",
     equityColor: "#06b6d4",
-    volumeColor: isDark ? "rgba(6, 182, 212, 0.2)" : "rgba(6, 182, 212, 0.3)",
-    upColor: "#22c55e",
+    volumeColor: "rgba(6, 182, 212, 0.2)",
+    upColor: "#10b981",
     downColor: "#ef4444",
   };
 
