@@ -53,8 +53,11 @@ export function mapSymbolToTradingView(symbol: string): string {
 }
 
 export default function LiveChartSection() {
-  const ticker = useBacktestStore((s) => s.ticker);
+  const storeTicker = useBacktestStore((s) => s.ticker);
   const theme = useThemeStore((s) => s.theme);
+  
+  // Local state for the ticker, allowing users to change it on the fly
+  const [chartTicker, setChartTicker] = useState(storeTicker);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -63,8 +66,13 @@ export default function LiveChartSection() {
     setMounted(true);
   }, []);
 
+  // Sync local ticker with backtest store ticker when store symbol changes
+  useEffect(() => {
+    setChartTicker(storeTicker);
+  }, [storeTicker]);
+
   // Determine if this exchange is restricted in TradingView's free widget iframe (NSE and BSE)
-  const isRestricted = ticker.toUpperCase().endsWith(".NS") || ticker.toUpperCase().endsWith(".BO");
+  const isRestricted = chartTicker.toUpperCase().endsWith(".NS") || chartTicker.toUpperCase().endsWith(".BO");
 
   // Compute 90-day window ending today
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -74,13 +82,13 @@ export default function LiveChartSection() {
 
   // Query yfinance ohlcv data from the local API only for restricted exchanges
   const { data: ohlcvResponse, isLoading: isOhlcvLoading, error: ohlcvError } = useQuery({
-    queryKey: ["live-ohlcv-fallback", ticker],
-    queryFn: () => getOhlcvData(ticker, ninetyDaysAgoStr, todayStr),
+    queryKey: ["live-ohlcv-fallback", chartTicker],
+    queryFn: () => getOhlcvData(chartTicker, ninetyDaysAgoStr, todayStr),
     refetchInterval: 10000, // 10s poll
-    enabled: !!ticker && isRestricted,
+    enabled: !!chartTicker && isRestricted,
   });
 
-  const tvSymbol = mapSymbolToTradingView(ticker);
+  const tvSymbol = mapSymbolToTradingView(chartTicker);
   const containerId = `tv-chart-${tvSymbol.replace(":", "-")}`;
 
   // Initialize the inline TradingView widget dynamically via script element injection (for non-restricted assets)
@@ -106,9 +114,10 @@ export default function LiveChartSection() {
         style: "1", // Candlesticks
         locale: "en",
         enable_publishing: false,
-        hide_top_toolbar: true,
+        hide_top_toolbar: false, // Show top toolbar to allow ticker input/selection
         hide_legend: false,
         save_image: false,
+        allow_symbol_change: true, // Allow search/change inside the widget panel
         calendar: false,
         support_host: "https://www.tradingview.com"
       });
@@ -144,6 +153,7 @@ export default function LiveChartSection() {
         enable_publishing: false,
         hide_side_toolbar: false, // Show indicators/drawing tools
         hide_top_toolbar: false,
+        allow_symbol_change: true,
         calendar: false,
         support_host: "https://www.tradingview.com"
       });
@@ -158,14 +168,24 @@ export default function LiveChartSection() {
 
   return (
     <div className="glass-card rounded-2xl p-6 transition-colors duration-300">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-white uppercase tracking-wider">
-            Live Reference Chart: <span className="text-cyan-600 dark:text-cyan-400 font-bold">{ticker}</span>
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+            <span>Live Reference Chart</span>
           </h3>
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 rounded px-1.5 py-0.5">
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium uppercase select-none">Symbol:</span>
+            <input
+              type="text"
+              value={chartTicker}
+              onChange={(e) => setChartTicker(e.target.value.toUpperCase())}
+              placeholder="AAPL"
+              className="w-20 bg-transparent text-xs font-bold text-cyan-600 dark:text-cyan-400 outline-none uppercase border-none focus:ring-0 p-0 text-center"
+            />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <span className="text-[10px] text-gray-500 font-medium px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700/50">
             {isRestricted ? "Live (Delayed) via yfinance" : "Live via TradingView"}
           </span>
@@ -196,7 +216,7 @@ export default function LiveChartSection() {
         </div>
       </div>
 
-      <div className="relative w-full h-[250px] bg-gray-900/10 dark:bg-gray-950/20 rounded-xl overflow-hidden border border-gray-200/50 dark:border-gray-800/50">
+      <div className="relative w-full h-[300px] bg-gray-900/10 dark:bg-gray-950/20 rounded-xl overflow-hidden border border-gray-200/50 dark:border-gray-800/50">
         {isRestricted ? (
           // RENDER FALLBACK LIGHTWEIGHT-CHARTS FOR RESTRICTED TICKERS (NSE/BSE)
           isOhlcvLoading ? (
@@ -209,10 +229,10 @@ export default function LiveChartSection() {
           ) : ohlcvError || !ohlcvResponse?.data || ohlcvResponse.data.length === 0 ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
               <span className="text-xl mb-1">⚠️</span>
-              <p className="text-xs text-red-500">Failed to load price history for {ticker}.</p>
+              <p className="text-xs text-red-500">Failed to load price history for {chartTicker}.</p>
             </div>
           ) : (
-            <TradingChart ohlcv={ohlcvResponse.data} height={250} showLiveIndicator={true} />
+            <TradingChart ohlcv={ohlcvResponse.data} height={300} showLiveIndicator={true} />
           )
         ) : (
           // RENDER TRADINGVIEW LIVE WIDGET FOR SUPPORTED TICKERS
@@ -230,7 +250,7 @@ export default function LiveChartSection() {
               <div className="flex items-center gap-3">
                 <span className="text-lg">📊</span>
                 <h3 className="text-base font-semibold text-slate-900 dark:text-white uppercase tracking-wider">
-                  Technical Panel: <span className="text-cyan-500 font-bold">{ticker}</span>
+                  Technical Panel: <span className="text-cyan-500 font-bold">{chartTicker}</span>
                 </h3>
                 <span className="text-[10px] text-gray-500 font-medium px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700/50">
                   {isRestricted ? "yfinance Feed" : "TradingView Live"}
