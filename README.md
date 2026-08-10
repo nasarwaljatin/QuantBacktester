@@ -4,9 +4,7 @@
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-blue.svg)](https://python.org)
 [![Next.js 14](https://img.shields.io/badge/Next.js-14-black.svg)](https://nextjs.org)
 
-> A web-based algorithmic trading strategy backtesting platform. Write strategies in Python, test against real historical data, and analyze performance with interactive charts.
-
-![QuantBacktester Screenshot](screenshot_placeholder.png)
+![QuantBacktester Main UI](docs/images/front.png)
 
 ---
 
@@ -184,6 +182,40 @@ Sizes positions dynamically using the Kelly Criterion formula based on the trail
 
 ---
 
+## Realistic Execution Modeling
+
+The backtest engine simulates several real-world trading constraints and frictional costs to prevent overoptimistic performance:
+
+### 1. Slippage Models
+Adjusts order execution prices to simulate market impact or low liquidity:
+- **Percentage Slippage**: Slippage is a percentage of the execution price.
+  \[\text{Buy Price} = P \times (1 + \text{Slippage \%})\]
+  \[\text{Sell Price} = P \times (1 - \text{Slippage \%})\]
+- **Points/Ticks Slippage**: Slippage adds/subtracts a fixed point amount from the price:
+  \[\text{Buy Price} = P + \text{Slippage Points}\]
+  \[\text{Sell Price} = P - \text{Slippage Points}\]
+
+### 2. Commission Structures
+Calculates transaction costs using different pricing models:
+- **Percentage Commission (Default)**: A percentage of total transaction value (e.g. 0.1%):
+  \[\text{Commission} = \text{Size} \times \text{Price} \times \text{Rate}\]
+- **Per-Share / Per-Contract**: A flat fee per share traded (e.g. $0.005/share):
+  \[\text{Commission} = \text{Size} \times \text{Rate}\]
+- **Tiered Per-Share**: A discounted rate for larger order sizes (e.g., $0.005/share for first 1,000 shares, and $0.003/share for any shares above):
+  \[\text{Commission} = \min(\text{Size}, \text{Limit}) \times \text{Base Rate} + \max(0, \text{Size} - \text{Limit}) \times \text{Tier Rate}\]
+
+### 3. Bid-Ask Spread Simulation
+Models the bid-ask spread on daily bar prices:
+- Executions simulate buying at the **ask** price and selling at the **bid** price by adding/subtracting half of the spread:
+  \[\text{Execution Price Adjustment} = \text{Slippage} + \frac{\text{Spread}}{2}\]
+
+### 4. Volume-Based Fill Limits (Partial Fills)
+Restricts the maximum number of shares filled on any single bar based on liquidity limits:
+- Maximum shares filled per bar is capped at a configurable percentage of the bar's volume (e.g., maximum 10% of volume). Any unfilled remainder of the order stays active in the market to be filled on subsequent bars:
+  \[\text{Max Fill Size} = \text{Bar Volume} \times \text{Volume Limit \%}\]
+
+---
+
 ## Built-in Strategy Templates
 
 | Strategy | Description |
@@ -227,3 +259,144 @@ Sizes positions dynamically using the Kelly Criterion formula based on the trail
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+## Walk-Forward Optimization & Parameter Sweeps (Phase 4)
+
+![QuantBacktester WFA & Sweep UI](docs/images/front2.png)
+
+
+### Overview
+
+Phase 4 adds two optimization modes that help identify robust trading strategies and detect over-fitting:
+
+| Mode | Description |
+|------|-------------|
+| **Parameter Sweep** | Grid search across all combinations of strategy parameters |
+| **Walk-Forward Analysis** | Rolling in-sample/out-of-sample evaluation to test generalization |
+
+---
+
+### Parameter Sweep
+
+Runs every combination of candidate values from a user-specified grid and reports the metric (Sharpe Ratio by default) for each.
+
+**How to use:**
+1. Select **Parameter Sweep** in the Optimization Mode panel on the main page.
+2. Fill in comma-separated candidate values for each strategy parameter detected from your code.
+   - Example: for `params = dict(fast=50, slow=200)`, enter `fast: 3, 5, 10` and `slow: 20, 30, 50`.
+3. Choose an **objective metric** (e.g. Sharpe Ratio, Total Return, Sortino Ratio).
+4. Click **Run Parameter Sweep**.
+
+**Results:**
+- A 2D colour heatmap (when 2 parameters are specified) mapping objective metric across the grid.
+- A ranked table of all combinations sorted by the selected metric.
+- Highlighted **best parameter** combination.
+
+**API:**
+```http
+POST /api/backtest/sweep
+{
+  "strategy_code": "...",
+  "tickers": ["AAPL"],
+  "start_date": "2020-01-01",
+  "end_date": "2024-01-01",
+  "param_grid": {"fast": [3, 5, 10], "slow": [20, 30, 50]},
+  "config": {...},
+  "objective": "sharpe_ratio"
+}
+```
+
+```http
+GET /api/backtest/{task_id}/sweep
+```
+
+---
+
+### Walk-Forward Analysis (WFA)
+
+Splits the full date range into rolling or expanding in-sample (training) and out-of-sample (testing) windows. For each window:
+1. An in-sample parameter sweep finds the best parameters.
+2. The best parameters are evaluated on the subsequent out-of-sample period (no re-fitting).
+3. Out-of-sample equity curves are concatenated into a continuous aggregate curve.
+
+#### WFA Window Types
+- **Rolling Window (Default):** Fixed-length sliding IS and OOS periods. Both shift forward by the OOS length each fold.
+- **Rolling Window (Anchored):** Pinned IS start date (the first fold's IS start) so the training window grows with each fold, while the OOS period slides forward.
+- **Expanding Window:** The IS start is pinned to the beginning of the entire backtest range, growing in size per fold, followed by the fixed-length OOS period.
+
+#### Advanced WFA Diagnostics
+- **Walk-Forward Efficiency Ratio (WFER):** Ratio of $\text{OOS Metric} / \text{IS Metric}$. CONSISTENTLY below 0.5 signals overfitting. A mean ratio $\ge 0.7$ suggests high generalizability.
+- **Parameter Stability (CV):** Calculates the Coefficient of Variation ($CV = \sigma / \mu$) for each numeric parameter across folds. A high CV indicates parameter selections are unstable and sensitive to minor data shifts.
+- **Pre-Flight Run Estimator:** Light-weight arithmetic validator that calculates folds, parameter combinations, and total backtests. Submissions exceeding the defined cap (e.g. 200 runs) are rejected before execution.
+
+**How to use:**
+1. Select **Walk-Forward Analysis** in the Optimization Mode panel.
+2. Fill in candidate parameter values and choose an objective.
+3. Set **In-Sample Days** (default: 365) and **Out-of-Sample Days** (default: 90).
+4. Configure **Window Type** (Rolling / Expanding) and **Anchored** toggle.
+5. Set **Max Runs Cap** limit to define the computation ceiling.
+6. Click **Run Walk-Forward Analysis** (disabled if the pre-flight estimate exceeds the cap).
+
+**Results:**
+- Color-coded aggregate **Efficiency Ratio Banner** (Green: Well-generalised, Amber: Moderate risk, Red: Overfit warning).
+- Interactive **Parameter Stability CV chart** mapping parameter fluctuations.
+- Per-window comparison table of IS vs. OOS metrics and fold-specific efficiency ratios.
+- Continuous out-of-sample equity curve chart.
+
+**API:**
+```http
+POST /api/backtest/walkforward/estimate
+{
+  "tickers": ["AAPL"],
+  "start_date": "2018-01-01",
+  "end_date": "2024-01-01",
+  "param_grid": {"fast": [3, 5, 10], "slow": [20, 30, 50]},
+  "in_sample_days": 365,
+  "out_of_sample_days": 90,
+  "window_type": "rolling",
+  "anchored": false,
+  "max_combinations": 200
+}
+```
+
+```http
+POST /api/backtest/walkforward
+{
+  "strategy_code": "...",
+  "tickers": ["AAPL"],
+  "start_date": "2018-01-01",
+  "end_date": "2024-01-01",
+  "param_grid": {"fast": [3, 5, 10], "slow": [20, 30, 50]},
+  "in_sample_days": 365,
+  "out_of_sample_days": 90,
+  "objective": "sharpe_ratio",
+  "window_type": "rolling",
+  "anchored": false,
+  "max_combinations": 200
+}
+```
+
+```http
+GET /api/backtest/{task_id}/walkforward
+```
+
+---
+
+### New Database Tables
+
+| Table | Purpose |
+|-------|---------|
+| `sweep_results` | One row per parameter combination per sweep task |
+| `wfa_windows` | One row per rolling window per walk-forward task, including `window_type`, `anchored`, and `efficiency_ratio` |
+
+The `backtest_results` table gains three new columns: `run_type` (`single` / `sweep` / `walk_forward`), `progress` (human-readable progress string), and `anchored` (boolean).
+
+---
+
+### Implementation Notes
+
+- **Concurrency**: Sweep combinations run in parallel using `ThreadPoolExecutor` (default: 4 workers). Each window's in-sample sweep is also parallelised.
+- **Progress reporting**: The `progress` field on the `backtest_results` record is updated after each combination/window completes, enabling live progress display while polling.
+- **Objective**: All available objectives map to the `PerformanceMetrics` fields: `sharpe_ratio`, `total_return`, `sortino_ratio`, `calmar_ratio`, `profit_factor`.

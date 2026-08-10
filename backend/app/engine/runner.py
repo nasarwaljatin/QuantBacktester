@@ -9,6 +9,63 @@ from typing import Any
 from app.engine.strategy_sandbox import run_cerebro_with_timeout
 
 
+class CustomCommissionInfo(bt.CommInfoBase):
+    """Custom commission scheme supporting percentage, per-share, and tiered rates."""
+
+    params = (
+        ("commission_type", "percent"),  # "percent", "per_share", "tiered"
+        ("commission_value", 0.001),     # rate (0.001 = 0.1%) or per-share charge
+        ("tier_limit", 1000),            # share threshold for tiered commission
+        ("tier_value", 0.003),           # per-share charge above threshold
+        ("stocklike", True),
+        ("commtype", bt.CommInfoBase.COMM_PERC),
+    )
+
+    def __init__(self):
+        super(CustomCommissionInfo, self).__init__()
+        if self.p.commission_type in ["per_share", "tiered"]:
+            self.p.commtype = bt.CommInfoBase.COMM_FIXED
+        else:
+            self.p.commtype = bt.CommInfoBase.COMM_PERC
+
+    def _getcommission(self, size, price, pseudoexec=True, *args, **kwargs):
+        abs_size = abs(size)
+        if self.p.commission_type == "percent":
+            value = abs_size * price
+            return value * self.p.commission_value
+        elif self.p.commission_type == "per_share":
+            return abs_size * self.p.commission_value
+        elif self.p.commission_type == "tiered":
+            if abs_size <= self.p.tier_limit:
+                return abs_size * self.p.commission_value
+            else:
+                base_comm = self.p.tier_limit * self.p.commission_value
+                extra_comm = (abs_size - self.p.tier_limit) * self.p.tier_value
+                return base_comm + extra_comm
+        return 0.0
+
+
+class CustomSlippage(object):
+    """Custom slippage model supporting percent slippage, point slippage, and spread simulation."""
+
+    def __init__(self, slip_perc=0.0, slip_points=0.0, spread=0.0):
+        self.slip_perc = slip_perc
+        self.slip_points = slip_points
+        self.spread = spread
+
+    def __call__(self, order, price, count, event, **kwargs):
+        half_spread = self.spread / 2.0
+        perc_slip = price * self.slip_perc
+        adjustment = self.slip_points + half_spread + perc_slip
+        
+        if order.isbuy():
+            slipped_price = price + adjustment
+        else:
+            slipped_price = price - adjustment
+            
+        return slipped_price, count
+
+
 class PortfolioSizer(bt.Sizer):
     """Custom pluggable position sizer for multi-asset trading."""
 
@@ -141,11 +198,84 @@ def run_backtest(
     # Create Cerebro engine
     cerebro = bt.Cerebro(tradehistory=True)
 
-    # Configure broker
+    # Configure broker cash
     cerebro.broker.setcash(initial_capital)
-    cerebro.broker.setcommission(commission=commission)
-    if slippage > 0:
-        cerebro.broker.set_slippage_perc(slippage)
+
+    # Configure custom commission structures
+    comm_type = config.get("commission_type", "percent")
+    comm_val = config.get("commission_value", commission)
+    tier_limit = config.get("commission_tier_limit", 1000)
+    tier_val = config.get("commission_tier_value", 0.003)
+
+    comm_info = CustomCommissionInfo(
+        commission_type=comm_type,
+        commission_value=comm_val,
+        tier_limit=tier_limit,
+        tier_value=tier_val
+    )
+    cerebro.broker.addcommissioninfo(comm_info)
+
+    # Configure custom slippage structures
+    slip_type = config.get("slippage_type", "percent")
+    slip_val = config.get("slippage_value", slippage)
+    spread = config.get("spread", 0.0)
+
+    # Store parameters inside the broker's parameters dict
+    cerebro.broker.p.slip_perc = slip_val if slip_type == "percent" else 0.0
+    cerebro.broker.p.slip_fixed = slip_val if slip_type == "points" else 0.0
+    cerebro.broker.p.spread = spread
+    cerebro.broker.p.slip_open = True
+
+    # Define custom slip_up and slip_down methods
+    def custom_slip_up(broker_self, pmax, price, doslip=True, lim=False):
+        if not doslip:
+            return price
+        
+        half_spread = broker_self.p.spread / 2.0
+        perc_slip = price * broker_self.p.slip_perc
+        fixed_slip = broker_self.p.slip_fixed
+        
+        total_adjustment = perc_slip + fixed_slip + half_spread
+        pslip = price + total_adjustment
+        
+        # Enforce price bounds like default backtrader
+        if pslip <= pmax:
+            return pslip
+        elif broker_self.p.slip_match or (lim and broker_self.p.slip_limit):
+            if not broker_self.p.slip_out:
+                return pmax
+            return pslip
+        return None
+
+    def custom_slip_down(broker_self, pmin, price, doslip=True, lim=False):
+        if not doslip:
+            return price
+        
+        half_spread = broker_self.p.spread / 2.0
+        perc_slip = price * broker_self.p.slip_perc
+        fixed_slip = broker_self.p.slip_fixed
+        
+        total_adjustment = perc_slip + fixed_slip + half_spread
+        pslip = price - total_adjustment
+        
+        # Enforce price bounds like default backtrader
+        if pslip >= pmin:
+            return pslip
+        elif broker_self.p.slip_match or (lim and broker_self.p.slip_limit):
+            if not broker_self.p.slip_out:
+                return pmin
+            return pslip
+        return None
+
+    # Bind the methods to the broker instance
+    import types
+    cerebro.broker._slip_up = types.MethodType(custom_slip_up, cerebro.broker)
+    cerebro.broker._slip_down = types.MethodType(custom_slip_down, cerebro.broker)
+
+    # Configure volume limit for partial fills
+    vol_limit = config.get("volume_limit_pct", None)
+    if vol_limit is not None:
+        cerebro.broker.set_filler(bt.broker.fillers.FixedBarPerc(perc=vol_limit))
 
     # Prepare and add data feeds
     for name, ohlcv_df in ohlcv_dfs.items():
@@ -360,6 +490,7 @@ def _extract_trades(strategy: bt.Strategy) -> list[dict[str, Any]]:
                         "pnl": round(float(pnl), 2),
                         "pnl_pct": round(float(pnl_pct), 4),
                         "ticker": ticker,
+                        "commission": round(float(getattr(t, "pnl", 0.0) - getattr(t, "pnlcomm", 0.0)), 4),
                     })
 
     return trades

@@ -84,6 +84,14 @@ def execute_backtest(
         "ticker_weights": ticker_weights or {},
         "sizing_model": config.get("sizing_model", "all_in"),
         "sizing_params": config.get("sizing_params", {}),
+        "commission_type": config.get("commission_type", "percent"),
+        "commission_value": config.get("commission_value", 0.001),
+        "commission_tier_limit": config.get("commission_tier_limit", 1000),
+        "commission_tier_value": config.get("commission_tier_value", 0.003),
+        "slippage_type": config.get("slippage_type", "percent"),
+        "slippage_value": config.get("slippage_value", 0.0005),
+        "spread": config.get("spread", 0.0),
+        "volume_limit_pct": config.get("volume_limit_pct", None),
     }
 
 

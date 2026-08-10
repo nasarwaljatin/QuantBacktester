@@ -1,5 +1,5 @@
 // frontend/src/app/results/[taskId]/page.tsx
-// Results page — displays backtest results with charts, metrics, trade log, Monte Carlo
+// Results page — displays backtest results (single, sweep, or walk-forward)
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -9,6 +9,9 @@ import MetricsGrid from "@/components/MetricsGrid";
 import EquityCurveChart from "@/components/EquityCurveChart";
 import TradeLogTable from "@/components/TradeLogTable";
 import MonteCarloChart from "@/components/MonteCarloChart";
+import SweepHeatmap from "@/components/SweepHeatmap";
+import WFAResultsTable from "@/components/WFAResultsTable";
+import { useBacktestStore } from "@/lib/store";
 import type { BacktestResponse } from "@/types/backtest";
 
 function SkeletonBlock({ className }: { className?: string }) {
@@ -27,6 +30,11 @@ export default function ResultsPage() {
   const router = useRouter();
   const taskId = params.taskId as string;
 
+  // Cached optimization results from store (set by RunButton before navigation)
+  const sweepResultCached = useBacktestStore((s) => s.sweepResult);
+  const wfaResultCached = useBacktestStore((s) => s.wfaResult);
+  const initialCapital = useBacktestStore((s) => s.config.initial_capital);
+
   const { data, isLoading, error } = useQuery<BacktestResponse>({
     queryKey: ["backtest", taskId],
     queryFn: () => getBacktestResult(taskId),
@@ -44,7 +52,6 @@ export default function ResultsPage() {
           <SkeletonBlock className="h-24" />
           <SkeletonBlock className="h-64" />
           <SkeletonBlock className="h-96" />
-          <SkeletonBlock className="h-64" />
         </div>
       </main>
     );
@@ -66,12 +73,22 @@ export default function ResultsPage() {
   }
 
   if (!data || data.status === "pending" || data.status === "running") {
+    const progress = (data as any)?.progress;
+    const runType = (data as any)?.run_type;
+    const isOpt = runType === "sweep" || runType === "walk_forward";
     return (
       <main className="min-h-screen bg-grid-pattern flex items-center justify-center">
-        <div className="glass-card rounded-2xl p-12 text-center">
-          <div className="w-16 h-16 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-6" />
-          <h2 className="text-xl font-bold text-white mb-2">Processing Backtest</h2>
-          <p className="text-sm text-gray-400">{data?.step || "Running your strategy..."}</p>
+        <div className="glass-card rounded-2xl p-12 text-center max-w-md">
+          <div className={`w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-6 ${isOpt ? "border-indigo-400" : "border-cyan-400"}`} />
+          <h2 className="text-xl font-bold text-white mb-2">
+            {runType === "sweep" ? "Running Parameter Sweep" : runType === "walk_forward" ? "Running Walk-Forward Analysis" : "Processing Backtest"}
+          </h2>
+          {progress && (
+            <div className="mt-3 mb-1">
+              <div className="text-sm font-semibold text-indigo-300">{progress}</div>
+            </div>
+          )}
+          <p className="text-sm text-gray-400">{(data as any)?.step || "Running your strategy..."}</p>
         </div>
       </main>
     );
@@ -82,7 +99,7 @@ export default function ResultsPage() {
       <main className="min-h-screen bg-grid-pattern flex items-center justify-center">
         <div className="glass-card rounded-2xl p-8 max-w-md text-center">
           <div className="text-4xl mb-4">❌</div>
-          <h2 className="text-xl font-bold text-white mb-2">Backtest Failed</h2>
+          <h2 className="text-xl font-bold text-white mb-2">Run Failed</h2>
           <p className="text-sm text-red-400 mb-6">{data.error || "Unknown error"}</p>
           <button onClick={() => router.push("/")} className="px-6 py-2.5 bg-cyan-500/20 text-cyan-400 rounded-xl hover:bg-cyan-500/30 transition-all text-sm font-medium">
             ← Back to Editor
@@ -92,10 +109,26 @@ export default function ResultsPage() {
     );
   }
 
-  // Success state
-  const ticker = data.ticker || "—";
+  // ─── Determine run type ────────────────────────────────────────────────
+  const runType = (data as any).run_type as string | undefined;
+  const isSweep = runType === "sweep";
+  const isWFA = runType === "walk_forward";
+
+  // For sweep/WFA, prefer the cached store result (has full data)
+  const sweepData = isSweep ? (sweepResultCached ?? (data as any)) : null;
+  const wfaData = isWFA ? (wfaResultCached ?? (data as any)) : null;
+
+  const ticker = (data as any).ticker || (data as any).tickers?.[0] || "—";
   const startDate = data.start_date || "";
   const endDate = data.end_date || "";
+
+  const badgeLabel = isSweep ? "Sweep" : isWFA ? "Walk-Forward" : "Complete";
+  const badgeColor = isSweep
+    ? "bg-violet-500/10 border-violet-500/20 text-violet-400"
+    : isWFA
+    ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400"
+    : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400";
+  const dotColor = isSweep ? "bg-violet-400" : isWFA ? "bg-indigo-400" : "bg-emerald-400";
 
   return (
     <main className="min-h-screen bg-grid-pattern">
@@ -120,49 +153,90 @@ export default function ResultsPage() {
             </button>
             <div>
               <h1 className="text-2xl font-bold text-white">
-                Results: <span className="text-cyan-400">{ticker}</span>
+                {isSweep ? "Parameter Sweep: " : isWFA ? "Walk-Forward: " : "Results: "}
+                <span className="text-cyan-400">{ticker}</span>
               </h1>
               <p className="text-sm text-gray-500">{startDate} — {endDate}</p>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-            <div className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="text-xs font-medium text-emerald-400">Complete</span>
+          <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border ${badgeColor}`}>
+            <div className={`w-2 h-2 rounded-full ${dotColor}`} />
+            <span className="text-xs font-medium">{badgeLabel}</span>
           </div>
         </div>
 
         <div className="space-y-6">
-          {/* Metrics */}
-          {data.metrics && (
-            <div className="animate-slide-up" style={{ animationDelay: "0.05s" }}>
-              <MetricsGrid metrics={data.metrics} />
-            </div>
+          {/* ─── Single Backtest Results ─── */}
+          {!isSweep && !isWFA && (
+            <>
+              {data.metrics && (
+                <div className="animate-slide-up" style={{ animationDelay: "0.05s" }}>
+                  <MetricsGrid metrics={data.metrics} />
+                </div>
+              )}
+              {data.equity_curve && data.equity_curve.length > 0 && (
+                <div className="animate-slide-up" style={{ animationDelay: "0.1s" }}>
+                  <EquityCurveChart
+                    equityCurve={data.equity_curve}
+                    benchmarkCurve={data.benchmark_curve || []}
+                  />
+                </div>
+              )}
+              {data.trades && data.trades.length > 0 && (
+                <div className="animate-slide-up" style={{ animationDelay: "0.15s" }}>
+                  <TradeLogTable trades={data.trades} />
+                </div>
+              )}
+              {data.monte_carlo && data.monte_carlo.paths && data.monte_carlo.paths.length > 0 && (
+                <div className="animate-slide-up" style={{ animationDelay: "0.2s" }}>
+                  <MonteCarloChart
+                    monteCarlo={data.monte_carlo}
+                    actualCurve={data.equity_curve || []}
+                  />
+                </div>
+              )}
+            </>
           )}
 
-          {/* Equity Curve */}
-          {data.equity_curve && data.equity_curve.length > 0 && (
-            <div className="animate-slide-up" style={{ animationDelay: "0.1s" }}>
-              <EquityCurveChart
-                equityCurve={data.equity_curve}
-                benchmarkCurve={data.benchmark_curve || []}
+          {/* ─── Parameter Sweep Results ─── */}
+          {isSweep && sweepData && (
+            <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: "0.05s" }}>
+              <div className="flex items-center gap-2 mb-6">
+                <span className="text-xl">🔍</span>
+                <h2 className="text-lg font-bold text-white">Parameter Sweep Results</h2>
+              </div>
+              <SweepHeatmap
+                sweepResults={sweepData.sweep_results ?? []}
+                bestParams={sweepData.best_params ?? {}}
+                paramGrid={sweepData.param_grid ?? {}}
+                objective={sweepData.objective ?? "sharpe_ratio"}
+                totalCombinations={sweepData.total_combinations ?? 0}
               />
             </div>
           )}
 
-          {/* Trade Log */}
-          {data.trades && data.trades.length > 0 && (
-            <div className="animate-slide-up" style={{ animationDelay: "0.15s" }}>
-              <TradeLogTable trades={data.trades} />
-            </div>
-          )}
-
-          {/* Monte Carlo */}
-          {data.monte_carlo && data.monte_carlo.paths && data.monte_carlo.paths.length > 0 && (
-            <div className="animate-slide-up" style={{ animationDelay: "0.2s" }}>
-              <MonteCarloChart
-                monteCarlo={data.monte_carlo}
-                actualCurve={data.equity_curve || []}
+          {/* ─── Walk-Forward Analysis Results ─── */}
+          {isWFA && wfaData && (
+            <div className="glass-card rounded-2xl p-6 animate-slide-up" style={{ animationDelay: "0.05s" }}>
+              <div className="flex items-center gap-2 mb-6">
+                <span className="text-xl">📊</span>
+                <h2 className="text-lg font-bold text-white">Walk-Forward Analysis Results</h2>
+              </div>
+              <WFAResultsTable
+                windows={wfaData.wfa_windows ?? []}
+                combinedOosEquity={wfaData.combined_oos_equity ?? []}
+                aggregateOosMetrics={wfaData.aggregate_oos_metrics ?? {}}
+                totalWindows={wfaData.total_windows ?? 0}
+                inSampleDays={wfaData.in_sample_days ?? 365}
+                outOfSampleDays={wfaData.out_of_sample_days ?? 90}
+                windowType={wfaData.window_type ?? "rolling"}
+                anchored={wfaData.anchored ?? false}
+                objective={wfaData.objective ?? "sharpe_ratio"}
+                initialCapital={initialCapital}
+                aggregateEfficiencyRatio={wfaData.aggregate_efficiency_ratio ?? null}
+                paramStability={wfaData.param_stability ?? {}}
               />
+
             </div>
           )}
         </div>

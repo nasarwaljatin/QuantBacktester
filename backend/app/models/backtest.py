@@ -31,6 +31,8 @@ class BacktestResult(Base):
     config_json: Mapped[dict] = mapped_column(JSON, nullable=True)
     result_json: Mapped[dict] = mapped_column(JSON, nullable=True)
     error_message: Mapped[str] = mapped_column(Text, nullable=True)
+    run_type: Mapped[str] = mapped_column(String(20), nullable=True, default="single")
+    progress: Mapped[str] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow
     )

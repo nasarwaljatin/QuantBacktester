@@ -7,6 +7,7 @@ import TickerSearch from "@/components/TickerSearch";
 import DateRangePicker from "@/components/DateRangePicker";
 import BacktestConfig from "@/components/BacktestConfig";
 import RunButton from "@/components/RunButton";
+import OptimizationConfig from "@/components/OptimizationConfig";
 import { useBacktestStore } from "@/lib/store";
 
 const STRATEGY_CARDS = [
@@ -154,6 +155,15 @@ export default function Home() {
               </div>
             </div>
             <BacktestConfig />
+          </div>
+
+          {/* Optimization Mode Panel */}
+          <div className="glass-card rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-lg">🎯</span>
+              <h2 className="text-sm font-semibold text-white">Optimization Mode</h2>
+            </div>
+            <OptimizationConfig />
           </div>
 
           {/* Run Button */}

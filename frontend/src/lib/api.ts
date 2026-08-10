@@ -6,6 +6,12 @@ import type {
   BacktestResponse,
   TickerResult,
   StrategyTemplate,
+  SweepRequest,
+  SweepResponse,
+  WFARequest,
+  WFAResponse,
+  WFAEstimateRequest,
+  WFAEstimateResponse,
 } from "@/types/backtest";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -100,5 +106,84 @@ export async function getStrategyTemplates(): Promise<{
  */
 export async function healthCheck(): Promise<{ status: string }> {
   const res = await fetch(`${API_BASE}/api/health`);
+  return res.json();
+}
+
+/**
+ * Submit a parameter sweep for execution.
+ */
+export async function submitSweep(
+  request: SweepRequest
+): Promise<{ task_id: string }> {
+  const res = await fetch(`${API_BASE}/api/backtest/sweep`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(err.detail?.error || err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+/**
+ * Poll for parameter sweep results.
+ */
+export async function getSweepResult(taskId: string): Promise<SweepResponse> {
+  const res = await fetch(`${API_BASE}/api/backtest/${taskId}/sweep`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(err.detail?.error || err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+/**
+ * Submit a walk-forward analysis for execution.
+ */
+export async function submitWalkForward(
+  request: WFARequest
+): Promise<{ task_id: string }> {
+  const res = await fetch(`${API_BASE}/api/backtest/walkforward`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(err.detail?.error || err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+/**
+ * Poll for walk-forward analysis results.
+ */
+export async function getWalkForwardResult(taskId: string): Promise<WFAResponse> {
+  const res = await fetch(`${API_BASE}/api/backtest/${taskId}/walkforward`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(err.detail?.error || err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+/**
+ * Pre-flight estimate: how many backtests will this WFA config produce?
+ * Does not launch any tasks or write to the DB.
+ */
+export async function estimateWFA(
+  request: WFAEstimateRequest
+): Promise<WFAEstimateResponse> {
+  const res = await fetch(`${API_BASE}/api/backtest/walkforward/estimate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(err.detail?.error || err.error || `HTTP ${res.status}`);
+  }
   return res.json();
 }
