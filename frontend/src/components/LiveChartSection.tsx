@@ -57,16 +57,29 @@ export default function LiveChartSection() {
   const [chartTicker, setChartTicker] = useState(storeTicker);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showWarningOverlay, setShowWarningOverlay] = useState(false);
 
   // Set mounted status on client load
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Determine if this exchange is restricted in TradingView's free widget iframe (NSE and BSE)
+  const isRestricted = chartTicker.toUpperCase().endsWith(".NS") || chartTicker.toUpperCase().endsWith(".BO");
+
   // Sync local ticker with backtest store ticker when store symbol changes
   useEffect(() => {
     setChartTicker(storeTicker);
   }, [storeTicker]);
+
+  // Show warning overlay whenever a restricted stock ticker is loaded
+  useEffect(() => {
+    if (isRestricted) {
+      setShowWarningOverlay(true);
+    } else {
+      setShowWarningOverlay(false);
+    }
+  }, [chartTicker, isRestricted]);
 
   const tvSymbol = mapSymbolToTradingView(chartTicker);
   const containerId = `tv-chart-${tvSymbol.replace(":", "-")}`;
@@ -178,7 +191,7 @@ export default function LiveChartSection() {
             aria-label="Expand Fullscreen Chart"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l-5-5m11 5v-4m0 4h-4m4 0l-5-5" />
             </svg>
           </button>
           
@@ -198,6 +211,57 @@ export default function LiveChartSection() {
 
       <div className="relative w-full h-[300px] bg-gray-900/10 dark:bg-gray-950/20 rounded-xl overflow-hidden border border-gray-200/50 dark:border-gray-800/50">
         <div key={tvSymbol} id={containerId} className="w-full h-full" />
+        
+        {/* Custom Data Restriction Popup Overlay with in-panel correction */}
+        {showWarningOverlay && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-950/90 backdrop-blur-md z-20 p-4">
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 max-w-sm w-full shadow-2xl flex flex-col items-center">
+              <span className="text-2xl mb-2">🇮🇳</span>
+              <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-1">
+                Exchange Data Restricted
+              </h4>
+              <p className="text-[11px] text-gray-400 text-center mb-4 leading-relaxed">
+                NSE/BSE symbols (like <span className="text-cyan-400 font-bold">{chartTicker}</span>) cannot be loaded inside third-party embedded charts due to licensing rules.
+              </p>
+              
+              {/* Symbol correction input inside the warning panel */}
+              <div className="w-full flex items-center gap-2 mb-4 bg-gray-950 border border-gray-800 rounded px-2.5 py-1.5 focus-within:border-cyan-500/50 transition-colors">
+                <span className="text-[10px] text-gray-500 font-medium uppercase select-none">Change Ticker:</span>
+                <input
+                  type="text"
+                  placeholder="e.g. AAPL, TSLA, BTC-USD"
+                  className="flex-1 bg-transparent text-xs font-bold text-cyan-400 outline-none uppercase border-none p-0"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const val = (e.target as HTMLInputElement).value.trim().toUpperCase();
+                      if (val) {
+                        setChartTicker(val);
+                        setShowWarningOverlay(false);
+                      }
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full">
+                <a
+                  href={externalLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold text-center transition-all"
+                >
+                  View on TradingView
+                </a>
+                <button
+                  onClick={() => setShowWarningOverlay(false)}
+                  className="flex-1 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs font-semibold transition-all border border-gray-700"
+                >
+                  Show Anyway
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Fullscreen In-App Modal */}
@@ -231,6 +295,57 @@ export default function LiveChartSection() {
             {/* Modal Chart Container */}
             <div className="flex-1 w-full bg-gray-950 relative">
               <div id="tv-chart-fullscreen" className="w-full h-full" />
+              
+              {/* Custom Data Restriction Popup Overlay inside Fullscreen Modal */}
+              {showWarningOverlay && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-950/90 backdrop-blur-md z-20 p-4">
+                  <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 max-w-sm w-full shadow-2xl flex flex-col items-center">
+                    <span className="text-2xl mb-2">🇮🇳</span>
+                    <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-1">
+                      Exchange Data Restricted
+                    </h4>
+                    <p className="text-[11px] text-gray-400 text-center mb-4 leading-relaxed">
+                      NSE/BSE symbols (like <span className="text-cyan-400 font-bold">{chartTicker}</span>) cannot be loaded inside third-party embedded charts due to licensing rules.
+                    </p>
+                    
+                    {/* Symbol correction input inside the modal overlay */}
+                    <div className="w-full flex items-center gap-2 mb-4 bg-gray-950 border border-gray-800 rounded px-2.5 py-1.5 focus-within:border-cyan-500/50 transition-colors">
+                      <span className="text-[10px] text-gray-500 font-medium uppercase select-none">Change Ticker:</span>
+                      <input
+                        type="text"
+                        placeholder="e.g. AAPL, TSLA, BTC-USD"
+                        className="flex-1 bg-transparent text-xs font-bold text-cyan-400 outline-none uppercase border-none p-0"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const val = (e.target as HTMLInputElement).value.trim().toUpperCase();
+                            if (val) {
+                              setChartTicker(val);
+                              setShowWarningOverlay(false);
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full">
+                      <a
+                        href={externalLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold text-center transition-all"
+                      >
+                        View on TradingView
+                      </a>
+                      <button
+                        onClick={() => setShowWarningOverlay(false)}
+                        className="flex-1 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white text-xs font-semibold transition-all border border-gray-700"
+                      >
+                        Show Anyway
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>
