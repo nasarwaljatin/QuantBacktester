@@ -3,11 +3,8 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useQuery } from "@tanstack/react-query";
 import { useThemeStore } from "@/lib/themeStore";
 import { useBacktestStore } from "@/lib/store";
-import { getOhlcvData } from "@/lib/api";
-import TradingChart from "./TradingChart";
 
 // Normalizes symbols from internal/yfinance formats to TradingView conventions
 export function mapSymbolToTradingView(symbol: string): string {
@@ -71,29 +68,12 @@ export default function LiveChartSection() {
     setChartTicker(storeTicker);
   }, [storeTicker]);
 
-  // Determine if this exchange is restricted in TradingView's free widget iframe (NSE and BSE)
-  const isRestricted = chartTicker.toUpperCase().endsWith(".NS") || chartTicker.toUpperCase().endsWith(".BO");
-
-  // Compute 90-day window ending today
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const ninetyDaysAgoStr = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
-
-  // Query yfinance ohlcv data from the local API only for restricted exchanges
-  const { data: ohlcvResponse, isLoading: isOhlcvLoading, error: ohlcvError } = useQuery({
-    queryKey: ["live-ohlcv-fallback", chartTicker],
-    queryFn: () => getOhlcvData(chartTicker, ninetyDaysAgoStr, todayStr),
-    refetchInterval: 10000, // 10s poll
-    enabled: !!chartTicker && isRestricted,
-  });
-
   const tvSymbol = mapSymbolToTradingView(chartTicker);
   const containerId = `tv-chart-${tvSymbol.replace(":", "-")}`;
 
-  // Initialize the inline TradingView widget dynamically via script element injection (for non-restricted assets)
+  // Initialize the inline TradingView widget dynamically via script element injection
   useEffect(() => {
-    if (isRestricted || !tvSymbol) return;
+    if (!tvSymbol) return;
 
     const timer = setTimeout(() => {
       const container = document.getElementById(containerId);
@@ -114,7 +94,7 @@ export default function LiveChartSection() {
         style: "1", // Candlesticks
         locale: "en",
         enable_publishing: false,
-        hide_top_toolbar: false, // Show top toolbar to allow ticker input/selection
+        hide_top_toolbar: false, // Show top toolbar to allow ticker input/selection/error correction
         hide_legend: false,
         save_image: false,
         allow_symbol_change: true, // Allow search/change inside the widget panel
@@ -126,11 +106,11 @@ export default function LiveChartSection() {
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [tvSymbol, theme, containerId, isRestricted]);
+  }, [tvSymbol, theme, containerId]);
 
   // Initialize the fullscreen modal TradingView widget dynamically via script element injection
   useEffect(() => {
-    if (!isModalOpen || isRestricted || !tvSymbol) return;
+    if (!isModalOpen || !tvSymbol) return;
 
     const timer = setTimeout(() => {
       const container = document.getElementById("tv-chart-fullscreen");
@@ -162,7 +142,7 @@ export default function LiveChartSection() {
     }, 150);
 
     return () => clearTimeout(timer);
-  }, [isModalOpen, tvSymbol, theme, isRestricted]);
+  }, [isModalOpen, tvSymbol, theme]);
 
   const externalLink = `https://www.tradingview.com/symbols/${tvSymbol.replace(":", "-")}/`;
 
@@ -187,7 +167,7 @@ export default function LiveChartSection() {
         </div>
         <div className="flex items-center gap-2 self-end sm:self-auto">
           <span className="text-[10px] text-gray-500 font-medium px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700/50">
-            {isRestricted ? "Live (Delayed) via yfinance" : "Live via TradingView"}
+            Live via TradingView
           </span>
 
           {/* Action buttons */}
@@ -217,27 +197,7 @@ export default function LiveChartSection() {
       </div>
 
       <div className="relative w-full h-[300px] bg-gray-900/10 dark:bg-gray-950/20 rounded-xl overflow-hidden border border-gray-200/50 dark:border-gray-800/50">
-        {isRestricted ? (
-          // RENDER FALLBACK LIGHTWEIGHT-CHARTS FOR RESTRICTED TICKERS (NSE/BSE)
-          isOhlcvLoading ? (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex items-center gap-3">
-                <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                <span className="text-gray-400 text-sm">Loading market feed...</span>
-              </div>
-            </div>
-          ) : ohlcvError || !ohlcvResponse?.data || ohlcvResponse.data.length === 0 ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
-              <span className="text-xl mb-1">⚠️</span>
-              <p className="text-xs text-red-500">Failed to load price history for {chartTicker}.</p>
-            </div>
-          ) : (
-            <TradingChart ohlcv={ohlcvResponse.data} height={300} showLiveIndicator={true} />
-          )
-        ) : (
-          // RENDER TRADINGVIEW LIVE WIDGET FOR SUPPORTED TICKERS
-          <div key={tvSymbol} id={containerId} className="w-full h-full" />
-        )}
+        <div key={tvSymbol} id={containerId} className="w-full h-full" />
       </div>
 
       {/* Fullscreen In-App Modal */}
@@ -253,7 +213,7 @@ export default function LiveChartSection() {
                   Technical Panel: <span className="text-cyan-500 font-bold">{chartTicker}</span>
                 </h3>
                 <span className="text-[10px] text-gray-500 font-medium px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700/50">
-                  {isRestricted ? "yfinance Feed" : "TradingView Live"}
+                  TradingView Live
                 </span>
               </div>
               <button
@@ -270,21 +230,7 @@ export default function LiveChartSection() {
 
             {/* Modal Chart Container */}
             <div className="flex-1 w-full bg-gray-950 relative">
-              {isRestricted ? (
-                // In-app modal fallback for restricted tickers
-                ohlcvResponse?.data ? (
-                  <div className="p-6 h-full flex flex-col justify-center">
-                    <TradingChart ohlcv={ohlcvResponse.data} height={450} showLiveIndicator={true} />
-                  </div>
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                    No data available.
-                  </div>
-                )
-              ) : (
-                // tradingview widget fullscreen
-                <div id="tv-chart-fullscreen" className="w-full h-full" />
-              )}
+              <div id="tv-chart-fullscreen" className="w-full h-full" />
             </div>
 
           </div>
