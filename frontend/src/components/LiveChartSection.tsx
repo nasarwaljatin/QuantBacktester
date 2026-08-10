@@ -2,8 +2,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useThemeStore } from "@/lib/themeStore";
 import { useBacktestStore } from "@/lib/store";
+
 
 // Normalizes symbols from internal/yfinance formats to TradingView conventions
 export function mapSymbolToTradingView(symbol: string): string {
@@ -60,8 +62,15 @@ export default function LiveChartSection() {
   const theme = useThemeStore((s) => s.theme);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Set mounted status on client load
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Load the TradingView widget loader script dynamically
+
   useEffect(() => {
     const existingScript = document.getElementById("tradingview-widget-script");
     if (existingScript) {
@@ -196,12 +205,12 @@ export default function LiveChartSection() {
       </div>
 
       {/* Fullscreen In-App Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/80 backdrop-blur-md">
-          <div className="relative w-full max-w-6xl h-[85vh] bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-850 flex flex-col overflow-hidden shadow-2xl animate-slide-up">
+      {isModalOpen && mounted && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-gray-950/85 backdrop-blur-md">
+          <div className="relative w-full max-w-6xl h-[85vh] bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden shadow-2xl animate-slide-up">
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-850">
               <div className="flex items-center gap-3">
                 <span className="text-lg">📊</span>
                 <h3 className="text-base font-semibold text-slate-900 dark:text-white uppercase tracking-wider">
@@ -213,7 +222,7 @@ export default function LiveChartSection() {
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-850 border border-gray-200 dark:border-gray-800 text-gray-500 hover:text-slate-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 transition-all cursor-pointer"
+                className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-slate-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-750 transition-all cursor-pointer"
                 title="Close Panel"
                 aria-label="Close Panel"
               >
@@ -229,8 +238,10 @@ export default function LiveChartSection() {
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
+
     </div>
   );
 }
