@@ -1,8 +1,6 @@
-// frontend/src/components/StrategyEditor.tsx
-"use client";
-
 import dynamic from "next/dynamic";
 import { useBacktestStore } from "@/lib/store";
+import { useThemeStore } from "@/lib/themeStore";
 import StrategyTemplates from "./StrategyTemplates";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -20,21 +18,23 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
 export default function StrategyEditor() {
   const strategyCode = useBacktestStore((s) => s.strategyCode);
   const setStrategyCode = useBacktestStore((s) => s.setStrategyCode);
+  const theme = useThemeStore((s) => s.theme);
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-          <h2 className="text-lg font-semibold text-white">Strategy Editor</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Strategy Editor</h2>
         </div>
         <StrategyTemplates />
       </div>
-      <div className="rounded-xl overflow-hidden border border-gray-700/50 shadow-2xl shadow-cyan-500/5">
+      <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700/50 shadow-2xl shadow-cyan-500/5">
         <MonacoEditor
           height="320px"
           language="python"
-          theme="vs-dark"
+          theme={theme === "dark" ? "vs-dark" : "vs"}
+
           value={strategyCode}
           onChange={(value) => setStrategyCode(value || "")}
           options={{

@@ -8,7 +8,9 @@ import DateRangePicker from "@/components/DateRangePicker";
 import BacktestConfig from "@/components/BacktestConfig";
 import RunButton from "@/components/RunButton";
 import OptimizationConfig from "@/components/OptimizationConfig";
+import LiveChartSection from "@/components/LiveChartSection";
 import { useBacktestStore } from "@/lib/store";
+
 
 const STRATEGY_CARDS = [
   {
@@ -133,14 +135,15 @@ export default function Home() {
             <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
             <span className="text-xs font-medium text-cyan-400">Algorithmic Trading Platform</span>
           </div>
-          <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-white via-cyan-200 to-blue-400 bg-clip-text text-transparent mb-4">
+          <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-slate-950 via-cyan-800 to-blue-900 dark:from-white dark:via-cyan-200 dark:to-blue-400 bg-clip-text text-transparent mb-4">
             QuantBacktester
           </h1>
-          <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+          <p className="text-lg text-slate-600 dark:text-gray-400 max-w-2xl mx-auto">
             Write trading strategies in Python, backtest against real historical data,
             and analyze performance with interactive charts and risk metrics.
           </p>
         </header>
+
 
         {/* Strategy Editor */}
         <div className="space-y-6 animate-slide-up" style={{ animationDelay: "0.1s" }}>
@@ -157,11 +160,14 @@ export default function Home() {
             <BacktestConfig />
           </div>
 
+          {/* Live Price Reference */}
+          <LiveChartSection />
+
           {/* Optimization Mode Panel */}
           <div className="glass-card rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-4">
               <span className="text-lg">🎯</span>
-              <h2 className="text-sm font-semibold text-white">Optimization Mode</h2>
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Optimization Mode</h2>
             </div>
             <OptimizationConfig />
           </div>
@@ -170,11 +176,12 @@ export default function Home() {
           <RunButton />
         </div>
 
+
         {/* Strategy Example Cards */}
         <div className="mt-16 animate-slide-up" style={{ animationDelay: "0.2s" }}>
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">Example Strategies</h2>
-            <p className="text-sm text-gray-500">Click any card to load it into the editor</p>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Example Strategies</h2>
+            <p className="text-sm text-slate-500 dark:text-gray-400">Click any card to load it into the editor</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {STRATEGY_CARDS.map((card) => (
@@ -184,10 +191,10 @@ export default function Home() {
                 className="group text-left glass-card rounded-xl p-5 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <div className="text-3xl mb-3">{card.icon}</div>
-                <h3 className="text-sm font-semibold text-white group-hover:text-cyan-300 transition-colors mb-1.5">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors mb-1.5">
                   {card.name}
                 </h3>
-                <p className="text-xs text-gray-500 leading-relaxed">{card.description}</p>
+                <p className="text-xs text-slate-500 dark:text-gray-400 leading-relaxed">{card.description}</p>
               </button>
             ))}
           </div>
@@ -195,12 +202,13 @@ export default function Home() {
 
         {/* Footer */}
         <footer className="mt-20 text-center">
-          <div className="h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent mb-6" />
-          <p className="text-xs text-gray-600">
+          <div className="h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-700 to-transparent mb-6" />
+          <p className="text-xs text-slate-400 dark:text-gray-600">
             QuantBacktester · Built with FastAPI, Backtrader, Next.js, and Plotly.js
           </p>
         </footer>
       </div>
     </main>
+
   );
 }

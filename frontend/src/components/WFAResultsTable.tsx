@@ -10,7 +10,9 @@
 import dynamic from "next/dynamic";
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
+import { useThemeStore } from "@/lib/themeStore";
 import type { WFAWindowResult, EquityCurvePoint } from "@/types/backtest";
+
 
 interface WFAResultsTableProps {
   windows: WFAWindowResult[];
@@ -128,7 +130,13 @@ export default function WFAResultsTable({
   aggregateEfficiencyRatio,
   paramStability,
 }: WFAResultsTableProps) {
+  const theme = useThemeStore((s) => s.theme);
+  const isDark = theme === "dark";
+  const textColor = isDark ? "#9ca3af" : "#374151";
+  const gridColor = isDark ? "rgba(75, 85, 99, 0.15)" : "rgba(229, 231, 235, 0.8)";
+
   const { isOverfit, isAvg, oosAvg } = detectOverfitting(windows, objective, aggregateEfficiencyRatio);
+
 
   // Build window-type label
   const windowLabel = anchored ? "Anchored Rolling" : windowType === "expanding" ? "Expanding" : "Rolling";
@@ -211,14 +219,14 @@ export default function WFAResultsTable({
                 margin: { t: 10, r: 20, b: 40, l: 60 },
                 paper_bgcolor: "transparent",
                 plot_bgcolor: "transparent",
-                font: { color: "#9ca3af", family: "Inter, sans-serif", size: 10 },
+                font: { color: textColor, family: "Inter, sans-serif", size: 10 },
                 xaxis: {
-                  gridcolor: "rgba(75, 85, 99, 0.15)",
+                  gridcolor: gridColor,
                   type: "date",
                   tickfont: { size: 9 },
                 },
                 yaxis: {
-                  gridcolor: "rgba(75, 85, 99, 0.15)",
+                  gridcolor: gridColor,
                   tickformat: ",.0f",
                   tickprefix: "$",
                   tickfont: { size: 9 },
@@ -229,6 +237,7 @@ export default function WFAResultsTable({
               config={{ responsive: true, displayModeBar: false }}
               className="w-full"
             />
+
           </div>
         </div>
       )}
@@ -357,9 +366,26 @@ export default function WFAResultsTable({
       )}
 
       <style jsx>{`
-        .wfa-root { display: flex; flex-direction: column; gap: 20px; }
+        .wfa-root {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          --wfa-text-main: #1f2937;
+          --wfa-bg-card: rgba(0,0,0,0.02);
+          --wfa-border: rgba(0,0,0,0.08);
+          --wfa-table-th-bg: rgba(0,0,0,0.03);
+          --wfa-text-table: #374151;
+        }
+        :global(.dark) .wfa-root {
+          --wfa-text-main: #e5e7eb;
+          --wfa-bg-card: rgba(255,255,255,0.03);
+          --wfa-border: rgba(255,255,255,0.07);
+          --wfa-table-th-bg: rgba(0,0,0,0.2);
+          --wfa-text-table: #d1d5db;
+        }
+
         .wfa-header-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .wfa-title { font-size: 16px; font-weight: 700; color: #e5e7eb; margin: 0; }
+        .wfa-title { font-size: 16px; font-weight: 700; color: var(--wfa-text-main); margin: 0; }
         .wfa-type-badge {
           font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
           background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3);
@@ -377,10 +403,14 @@ export default function WFAResultsTable({
           padding: 12px 16px; border-radius: 10px; border: 1px solid;
           font-size: 13px; font-weight: 600; line-height: 1.5;
         }
-        .wfa-er-banner--green { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.3); color: #86efac; }
-        .wfa-er-banner--amber { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.3); color: #fcd34d; }
-        .wfa-er-banner--red { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.3); color: #fca5a5; }
-        .wfa-er-banner--neutral { background: rgba(107,114,128,0.08); border-color: rgba(107,114,128,0.3); color: #9ca3af; }
+        .wfa-er-banner--green { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.3); color: #10b981; }
+        :global(.dark) .wfa-er-banner--green { color: #86efac; }
+        .wfa-er-banner--amber { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.3); color: #d97706; }
+        :global(.dark) .wfa-er-banner--amber { color: #fcd34d; }
+        .wfa-er-banner--red { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.3); color: #ef4444; }
+        :global(.dark) .wfa-er-banner--red { color: #fca5a5; }
+        .wfa-er-banner--neutral { background: rgba(107,114,128,0.08); border-color: rgba(107,114,128,0.3); color: #6b7280; }
+        :global(.dark) .wfa-er-banner--neutral { color: #9ca3af; }
         .wfa-er-banner-sub { font-size: 11px; font-weight: 400; opacity: 0.8; }
 
         /* Overfitting warning */
@@ -388,8 +418,9 @@ export default function WFAResultsTable({
           display: flex; gap: 12px; align-items: flex-start;
           padding: 14px 16px; border-radius: 10px;
           background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.25);
-          color: #fcd34d; font-size: 13px; line-height: 1.6;
+          color: #d97706; font-size: 13px; line-height: 1.6;
         }
+        :global(.dark) .wfa-overfit-banner { color: #fcd34d; }
         .wfa-warn-icon { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; }
 
         /* Sections */
@@ -401,61 +432,60 @@ export default function WFAResultsTable({
         .wfa-hint { font-size: 12px; color: #6b7280; margin: 0; line-height: 1.5; }
 
         /* Chart */
-        .wfa-chart-wrap { border-radius: 12px; background: rgba(255,255,255,0.02); padding: 8px 0; }
+        .wfa-chart-wrap { border-radius: 12px; background: var(--wfa-bg-card); border: 1px solid var(--wfa-border); padding: 8px 0; }
 
         /* Aggregate metrics grid */
         .wfa-metrics-grid {
           display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;
         }
         .wfa-metric-card {
-          background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+          background: var(--wfa-bg-card); border: 1px solid var(--wfa-border);
           border-radius: 10px; padding: 12px 14px;
         }
         .wfa-metric-label { font-size: 10px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; }
-        .wfa-metric-value { font-size: 17px; font-weight: 700; color: #e5e7eb; margin-top: 4px; }
+        .wfa-metric-value { font-size: 17px; font-weight: 700; color: var(--wfa-text-main); margin-top: 4px; }
 
         /* Table */
-        .wfa-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid rgba(255,255,255,0.07); }
+        .wfa-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--wfa-border); }
         .wfa-table { width: 100%; border-collapse: collapse; font-size: 12px; }
         .wfa-table th {
           padding: 10px 12px; text-align: left; font-size: 10px; font-weight: 700;
           letter-spacing: 0.07em; text-transform: uppercase; color: #6b7280;
-          border-bottom: 1px solid rgba(255,255,255,0.07); white-space: nowrap;
-          background: rgba(0,0,0,0.2);
+          border-bottom: 1px solid var(--wfa-border); white-space: nowrap;
+          background: var(--wfa-table-th-bg);
         }
-        .wfa-table td { padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #d1d5db; }
+        .wfa-table td { padding: 9px 12px; border-bottom: 1px solid var(--wfa-border); color: var(--wfa-text-table); }
         .wfa-table tr:last-child td { border-bottom: none; }
-        .wfa-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .wfa-table tr:hover td { background: rgba(0,0,0,0.015); }
+        :global(.dark) .wfa-table tr:hover td { background: rgba(255,255,255,0.02); }
         .wfa-row-fail td { opacity: 0.5; }
         .wfa-fold-num { font-weight: 700; color: #6366f1; }
-        .wfa-date-range { font-family: monospace; font-size: 11px; color: #9ca3af; }
+        .wfa-date-range { font-family: monospace; font-size: 11px; color: #6b7280; }
+        :global(.dark) .wfa-date-range { color: #9ca3af; }
         .wfa-er-cell { font-weight: 700; font-size: 13px; }
         .wfa-status-badge {
           font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px;
           text-transform: uppercase; letter-spacing: 0.06em;
         }
-        .wfa-status-success { background: rgba(34,197,94,0.12); color: #86efac; }
-        .wfa-status-failure { background: rgba(239,68,68,0.12); color: #fca5a5; }
-        .wfa-status-pending { background: rgba(107,114,128,0.12); color: #9ca3af; }
+        .wfa-status-success { background: rgba(34,197,94,0.12); color: #10b981; }
+        :global(.dark) .wfa-status-success { color: #86efac; }
+        .wfa-status-failure { background: rgba(239,68,68,0.12); color: #ef4444; }
+        :global(.dark) .wfa-status-failure { color: #fca5a5; }
+        .wfa-status-pending { background: rgba(107,114,128,0.12); color: #6b7280; }
+        :global(.dark) .wfa-status-pending { color: #9ca3af; }
 
         /* Parameter Stability */
         .wfa-stability-list { display: flex; flex-direction: column; gap: 8px; }
         .wfa-stability-row { display: grid; grid-template-columns: 90px 1fr 120px; align-items: center; gap: 10px; }
-        .wfa-stability-param { font-size: 12px; font-weight: 600; color: #e5e7eb; }
-        .wfa-stability-bar-wrap { height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+        .wfa-stability-param { font-size: 12px; font-weight: 600; color: var(--wfa-text-main); }
+        .wfa-stability-bar-wrap { height: 8px; background: rgba(0,0,0,0.04); border-radius: 4px; overflow: hidden; }
+        :global(.dark) .wfa-stability-bar-wrap { background: rgba(255,255,255,0.06); }
         .wfa-stability-bar { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
         .wfa-stability-cv { font-size: 12px; font-weight: 600; }
         .wfa-stability-label { font-weight: 400; color: #6b7280; }
         .wfa-stability-legend { display: flex; gap: 14px; font-size: 11px; margin-top: 4px; flex-wrap: wrap; }
-
-        /* Tooltip */
-        .wfa-tooltip {
-          background: rgba(15,17,26,0.95); border: 1px solid rgba(99,102,241,0.3);
-          border-radius: 8px; padding: 8px 12px;
-        }
-        .wfa-tooltip-date { font-size: 11px; color: #9ca3af; margin: 0 0 4px; }
-        .wfa-tooltip-val { font-size: 14px; font-weight: 700; color: #a5b4fc; margin: 0; }
       `}</style>
+
     </div>
   );
 }

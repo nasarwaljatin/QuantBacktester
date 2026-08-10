@@ -187,3 +187,22 @@ export async function estimateWFA(
   }
   return res.json();
 }
+
+/**
+ * Retrieve OHLCV price history for a ticker and date range.
+ */
+export async function getOhlcvData(
+  ticker: string,
+  start: string,
+  end: string
+): Promise<{ data: any[]; count: number }> {
+  const res = await fetch(
+    `${API_BASE}/api/ohlcv?ticker=${encodeURIComponent(ticker)}&start=${encodeURIComponent(start.slice(0, 10))}&end=${encodeURIComponent(end.slice(0, 10))}`
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Failed to fetch price data" }));
+    throw new Error(err.detail?.error || err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+

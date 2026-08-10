@@ -275,24 +275,38 @@ export default function SweepHeatmap({
           display: flex;
           flex-direction: column;
           align-items: center;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.08);
+          background: rgba(0,0,0,0.02);
+          border: 1px solid rgba(0,0,0,0.06);
           border-radius: 10px;
           padding: 12px 20px;
           min-width: 90px;
         }
+        :global(.dark) .sweep-stat {
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+        }
         .sweep-stat-best {
+          border-color: rgba(250,204,21,0.2);
+          background: rgba(250,204,21,0.04);
+        }
+        :global(.dark) .sweep-stat-best {
           border-color: rgba(250,204,21,0.3);
           background: rgba(250,204,21,0.06);
         }
         .sweep-stat-val {
           font-size: 22px;
           font-weight: 700;
+          color: #111827;
+        }
+        :global(.dark) .sweep-stat-val {
           color: #e5e7eb;
         }
-        .sweep-stat-success { color: #34d399; }
-        .sweep-stat-fail { color: #f87171; }
-        .sweep-stat-gold { color: #fbbf24; }
+        .sweep-stat-success { color: #10b981; }
+        :global(.dark) .sweep-stat-success { color: #34d399; }
+        .sweep-stat-fail { color: #ef4444; }
+        :global(.dark) .sweep-stat-fail { color: #f87171; }
+        .sweep-stat-gold { color: #d97706; }
+        :global(.dark) .sweep-stat-gold { color: #fbbf24; }
         .sweep-stat-label {
           font-size: 11px;
           color: #6b7280;
@@ -304,20 +318,31 @@ export default function SweepHeatmap({
           align-items: center;
           gap: 8px;
           padding: 10px 14px;
+          background: rgba(99,102,241,0.05);
+          border: 1px solid rgba(99,102,241,0.18);
+          border-radius: 8px;
+        }
+        :global(.dark) .best-params-row {
           background: rgba(99,102,241,0.1);
           border: 1px solid rgba(99,102,241,0.25);
-          border-radius: 8px;
         }
         .best-params-label {
           font-size: 12px;
-          color: #a5b4fc;
+          color: #4f46e5;
           font-weight: 600;
+        }
+        :global(.dark) .best-params-label {
+          color: #a5b4fc;
         }
         .best-param-pill {
           font-size: 12px;
-          background: rgba(99,102,241,0.2);
+          background: rgba(99,102,241,0.08);
           border-radius: 12px;
           padding: 3px 10px;
+          color: #312e81;
+        }
+        :global(.dark) .best-param-pill {
+          background: rgba(99,102,241,0.2);
           color: #c7d2fe;
         }
         .heatmap-section {
@@ -330,8 +355,11 @@ export default function SweepHeatmap({
           font-weight: 700;
           letter-spacing: 0.06em;
           text-transform: uppercase;
-          color: #9ca3af;
+          color: #4b5563;
           margin: 0;
+        }
+        :global(.dark) .heatmap-title {
+          color: #9ca3af;
         }
         .heatmap-scroll {
           overflow-x: auto;
@@ -343,18 +371,29 @@ export default function SweepHeatmap({
         .heatmap-corner,
         .heatmap-th {
           padding: 6px 12px;
-          background: rgba(255,255,255,0.04);
-          color: #9ca3af;
+          background: rgba(0,0,0,0.03);
+          color: #4b5563;
           font-weight: 600;
           text-align: center;
+          border: 1px solid rgba(0,0,0,0.06);
+        }
+        :global(.dark) .heatmap-corner,
+        :global(.dark) .heatmap-th {
+          background: rgba(255,255,255,0.04);
+          color: #9ca3af;
           border: 1px solid rgba(255,255,255,0.06);
         }
         .heatmap-row-header {
           padding: 6px 12px;
-          background: rgba(255,255,255,0.04);
-          color: #9ca3af;
+          background: rgba(0,0,0,0.03);
+          color: #4b5563;
           font-weight: 600;
           text-align: right;
+          border: 1px solid rgba(0,0,0,0.06);
+        }
+        :global(.dark) .heatmap-row-header {
+          background: rgba(255,255,255,0.04);
+          color: #9ca3af;
           border: 1px solid rgba(255,255,255,0.06);
         }
         .heatmap-cell {
@@ -362,11 +401,14 @@ export default function SweepHeatmap({
           text-align: center;
           font-size: 12px;
           font-weight: 500;
-          color: #fff;
-          border: 1px solid rgba(255,255,255,0.06);
+          color: #ffffff;
+          border: 1px solid rgba(0,0,0,0.06);
           transition: opacity 0.15s;
           position: relative;
           cursor: default;
+        }
+        :global(.dark) .heatmap-cell {
+          border: 1px solid rgba(255,255,255,0.06);
         }
         .heatmap-cell--best {
           outline: 2px solid #fbbf24;
@@ -393,14 +435,20 @@ export default function SweepHeatmap({
         }
         .bar-label {
           font-size: 12px;
-          color: #9ca3af;
+          color: #4b5563;
           text-align: right;
+        }
+        :global(.dark) .bar-label {
+          color: #9ca3af;
         }
         .bar-track {
           height: 18px;
-          background: rgba(255,255,255,0.05);
+          background: rgba(0,0,0,0.03);
           border-radius: 4px;
           overflow: hidden;
+        }
+        :global(.dark) .bar-track {
+          background: rgba(255,255,255,0.05);
         }
         .bar-fill {
           height: 100%;
@@ -415,8 +463,11 @@ export default function SweepHeatmap({
         }
         .bar-val {
           font-size: 12px;
-          color: #e5e7eb;
+          color: #1f2937;
           text-align: left;
+        }
+        :global(.dark) .bar-val {
+          color: #e5e7eb;
         }
         /* Results table */
         .sweep-table-wrap {
@@ -429,36 +480,59 @@ export default function SweepHeatmap({
         }
         .sweep-table th {
           padding: 8px 12px;
-          background: rgba(255,255,255,0.04);
-          color: #9ca3af;
+          background: rgba(0,0,0,0.03);
+          color: #4b5563;
           font-weight: 700;
           text-align: left;
-          border-bottom: 1px solid rgba(255,255,255,0.08);
+          border-bottom: 1px solid rgba(0,0,0,0.08);
           white-space: nowrap;
         }
+        :global(.dark) .sweep-table th {
+          background: rgba(255,255,255,0.04);
+          color: #9ca3af;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
         .sweep-table tr:hover td {
+          background: rgba(0,0,0,0.015);
+        }
+        :global(.dark) .sweep-table tr:hover td {
           background: rgba(255,255,255,0.03);
         }
         .sweep-row--best td {
+          background: rgba(99,102,241,0.05) !important;
+        }
+        :global(.dark) .sweep-row--best td {
           background: rgba(99,102,241,0.1) !important;
         }
         .sweep-td-rank {
           padding: 7px 12px;
-          color: #6b7280;
+          color: #9ca3af;
           font-size: 11px;
+          border-bottom: 1px solid rgba(0,0,0,0.04);
+        }
+        :global(.dark) .sweep-td-rank {
+          color: #6b7280;
           border-bottom: 1px solid rgba(255,255,255,0.04);
         }
         .sweep-td-param {
           padding: 7px 12px;
-          color: #c7d2fe;
+          color: #4f46e5;
           font-weight: 600;
+          border-bottom: 1px solid rgba(0,0,0,0.04);
+        }
+        :global(.dark) .sweep-td-param {
+          color: #c7d2fe;
           border-bottom: 1px solid rgba(255,255,255,0.04);
         }
         .sweep-td-metric {
           padding: 7px 12px;
+          color: #1f2937;
+          border-bottom: 1px solid rgba(0,0,0,0.04);
+          position: relative;
+        }
+        :global(.dark) .sweep-td-metric {
           color: #e5e7eb;
           border-bottom: 1px solid rgba(255,255,255,0.04);
-          position: relative;
         }
         .sweep-best-star {
           color: #fbbf24;

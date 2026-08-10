@@ -4,15 +4,17 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { getBacktestResult } from "@/lib/api";
+import { getBacktestResult, getOhlcvData } from "@/lib/api";
 import MetricsGrid from "@/components/MetricsGrid";
 import EquityCurveChart from "@/components/EquityCurveChart";
 import TradeLogTable from "@/components/TradeLogTable";
 import MonteCarloChart from "@/components/MonteCarloChart";
 import SweepHeatmap from "@/components/SweepHeatmap";
 import WFAResultsTable from "@/components/WFAResultsTable";
+import TradingChart from "@/components/TradingChart";
 import { useBacktestStore } from "@/lib/store";
 import type { BacktestResponse } from "@/types/backtest";
+
 
 function SkeletonBlock({ className }: { className?: string }) {
   return (
@@ -44,6 +46,18 @@ export default function ResultsPage() {
       return 1500;
     },
   });
+
+  const queryTicker = data?.ticker || data?.tickers?.[0];
+  const queryStart = data?.start_date;
+  const queryEnd = data?.end_date;
+
+  const { data: ohlcvResponse, isLoading: isOhlcvLoading } = useQuery({
+    queryKey: ["ohlcv", queryTicker, queryStart, queryEnd],
+    queryFn: () => getOhlcvData(queryTicker!, queryStart!, queryEnd!),
+    enabled: !!data && data.status === "success" && !!queryTicker && !!queryStart && !!queryEnd,
+  });
+
+
 
   if (isLoading) {
     return (
@@ -99,15 +113,16 @@ export default function ResultsPage() {
       <main className="min-h-screen bg-grid-pattern flex items-center justify-center">
         <div className="glass-card rounded-2xl p-8 max-w-md text-center">
           <div className="text-4xl mb-4">❌</div>
-          <h2 className="text-xl font-bold text-white mb-2">Run Failed</h2>
-          <p className="text-sm text-red-400 mb-6">{data.error || "Unknown error"}</p>
-          <button onClick={() => router.push("/")} className="px-6 py-2.5 bg-cyan-500/20 text-cyan-400 rounded-xl hover:bg-cyan-500/30 transition-all text-sm font-medium">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Run Failed</h2>
+          <p className="text-sm text-red-500 mb-6">{data.error || "Unknown error"}</p>
+          <button onClick={() => router.push("/")} className="px-6 py-2.5 bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 rounded-xl hover:bg-cyan-500/30 transition-all text-sm font-medium">
             ← Back to Editor
           </button>
         </div>
       </main>
     );
   }
+
 
   // ─── Determine run type ────────────────────────────────────────────────
   const runType = (data as any).run_type as string | undefined;
@@ -144,7 +159,7 @@ export default function ResultsPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push("/")}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800/60 border border-gray-700/50 text-sm text-gray-300 hover:text-white hover:border-gray-600 transition-all group"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/50 text-sm text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600 transition-all group"
             >
               <svg className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -152,9 +167,9 @@ export default function ResultsPage() {
               Back
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-white">
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
                 {isSweep ? "Parameter Sweep: " : isWFA ? "Walk-Forward: " : "Results: "}
-                <span className="text-cyan-400">{ticker}</span>
+                <span className="text-cyan-500 dark:text-cyan-400">{ticker}</span>
               </h1>
               <p className="text-sm text-gray-500">{startDate} — {endDate}</p>
             </div>
@@ -164,6 +179,7 @@ export default function ResultsPage() {
             <span className="text-xs font-medium">{badgeLabel}</span>
           </div>
         </div>
+
 
         <div className="space-y-6">
           {/* ─── Single Backtest Results ─── */}
@@ -176,12 +192,34 @@ export default function ResultsPage() {
               )}
               {data.equity_curve && data.equity_curve.length > 0 && (
                 <div className="animate-slide-up" style={{ animationDelay: "0.1s" }}>
-                  <EquityCurveChart
-                    equityCurve={data.equity_curve}
-                    benchmarkCurve={data.benchmark_curve || []}
-                  />
+                  <div className="bg-white dark:bg-gray-800/40 backdrop-blur-sm rounded-2xl border border-gray-200 dark:border-gray-700/50 p-6 shadow-xl transition-colors duration-300">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Equity & Price Action</h3>
+                    </div>
+                    {isOhlcvLoading ? (
+                      <div className="h-[400px] flex items-center justify-center">
+                        <div className="flex items-center gap-3">
+                          <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-gray-500 text-sm">Loading price action...</span>
+                        </div>
+                      </div>
+                    ) : ohlcvResponse?.data ? (
+                      <TradingChart
+                        ohlcv={ohlcvResponse.data}
+                        equityCurve={data.equity_curve}
+                        trades={data.trades || []}
+                      />
+                    ) : (
+                      <EquityCurveChart
+                        equityCurve={data.equity_curve}
+                        benchmarkCurve={data.benchmark_curve || []}
+                      />
+                    )}
+                  </div>
                 </div>
               )}
+
               {data.trades && data.trades.length > 0 && (
                 <div className="animate-slide-up" style={{ animationDelay: "0.15s" }}>
                   <TradeLogTable trades={data.trades} />

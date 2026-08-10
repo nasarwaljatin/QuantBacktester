@@ -69,24 +69,24 @@ export default function BacktestConfig() {
       {/* 1. Core Capital & Allocation Config */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <div>
-          <label htmlFor="currency" className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">
+          <label htmlFor="currency" className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
             Currency
           </label>
           <select
             id="currency"
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
-            className="w-full bg-gray-800/80 border border-gray-600/30 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 backdrop-blur-sm transition-all"
+            className="backtest-input"
           >
             {currencyOptions.map((opt) => (
-              <option key={opt.value} value={opt.value} className="bg-gray-900">
+              <option key={opt.value} value={opt.value} className="bg-white dark:bg-gray-900 text-slate-800 dark:text-white">
                 {opt.label}
               </option>
             ))}
           </select>
         </div>
         <div>
-          <label htmlFor="initial-capital" className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">
+          <label htmlFor="initial-capital" className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
             Initial Capital ({currency})
           </label>
           <input
@@ -97,11 +97,11 @@ export default function BacktestConfig() {
             min={1000}
             max={100000000}
             step={1000}
-            className="w-full bg-gray-800/80 border border-gray-600/30 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 backdrop-blur-sm transition-all"
+            className="backtest-input"
           />
         </div>
         <div>
-          <label htmlFor="allocation-pct" className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">
+          <label htmlFor="allocation-pct" className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
             Capital Allocation (%)
           </label>
           <input
@@ -112,25 +112,25 @@ export default function BacktestConfig() {
             min={1}
             max={100}
             step={1}
-            className="w-full bg-gray-800/80 border border-gray-600/30 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 backdrop-blur-sm transition-all"
+            className="backtest-input"
           />
         </div>
       </div>
 
       {/* 2. Position Sizing Model Card */}
-      <div className="bg-gray-900/40 border border-gray-800/80 rounded-xl p-4 flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between backdrop-blur-md">
+      <div className="bg-slate-100/80 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800/80 rounded-xl p-4 flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between backdrop-blur-md transition-colors duration-300">
         <div className="w-full lg:w-1/3">
-          <label htmlFor="sizing-model" className="block text-xs font-semibold text-cyan-400/80 uppercase tracking-wider mb-1.5">
+          <label htmlFor="sizing-model" className="block text-xs font-semibold text-cyan-600 dark:text-cyan-400/80 uppercase tracking-wider mb-1.5">
             Position Sizing Model
           </label>
           <select
             id="sizing-model"
             value={sizingModel}
             onChange={(e) => handleSizingModelChange(e.target.value)}
-            className="w-full bg-gray-800/80 border border-gray-600/30 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 backdrop-blur-sm transition-all"
+            className="backtest-input"
           >
             {sizingModelOptions.map((opt) => (
-              <option key={opt.value} value={opt.value} className="bg-gray-900">
+              <option key={opt.value} value={opt.value} className="bg-white dark:bg-gray-900 text-slate-800 dark:text-white">
                 {opt.label}
               </option>
             ))}
@@ -141,7 +141,7 @@ export default function BacktestConfig() {
         <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           {sizingModel === "fixed_fractional" && (
             <div>
-              <label htmlFor="risk-pct" className="block text-xs font-medium text-gray-400 mb-1.5">
+              <label htmlFor="risk-pct" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                 Risk % per Trade
               </label>
               <input
@@ -152,7 +152,7 @@ export default function BacktestConfig() {
                 min={0.1}
                 max={10.0}
                 step={0.1}
-                className="w-full bg-gray-800/60 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 backdrop-blur-sm transition-all"
+                className="backtest-input py-2"
               />
             </div>
           )}
@@ -160,7 +160,7 @@ export default function BacktestConfig() {
           {sizingModel === "volatility_targeted" && (
             <>
               <div>
-                <label htmlFor="target-risk-pct" className="block text-xs font-medium text-gray-400 mb-1.5">
+                <label htmlFor="target-risk-pct" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                   Target Risk %
                 </label>
                 <input
@@ -171,11 +171,11 @@ export default function BacktestConfig() {
                   min={0.1}
                   max={5.0}
                   step={0.1}
-                  className="w-full bg-gray-800/60 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 backdrop-blur-sm transition-all"
+                  className="backtest-input py-2"
                 />
               </div>
               <div>
-                <label htmlFor="atr-period" className="block text-xs font-medium text-gray-400 mb-1.5">
+                <label htmlFor="atr-period" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                   ATR Period (days)
                 </label>
                 <input
@@ -186,7 +186,7 @@ export default function BacktestConfig() {
                   min={2}
                   max={100}
                   step={1}
-                  className="w-full bg-gray-800/60 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 backdrop-blur-sm transition-all"
+                  className="backtest-input py-2"
                 />
               </div>
             </>
@@ -195,7 +195,7 @@ export default function BacktestConfig() {
           {sizingModel === "kelly" && (
             <>
               <div>
-                <label htmlFor="kelly-multiplier" className="block text-xs font-medium text-gray-400 mb-1.5">
+                <label htmlFor="kelly-multiplier" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                   Kelly Multiplier (Half Kelly = 0.5)
                 </label>
                 <input
@@ -206,11 +206,11 @@ export default function BacktestConfig() {
                   min={0.05}
                   max={2.0}
                   step={0.05}
-                  className="w-full bg-gray-800/60 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 backdrop-blur-sm transition-all"
+                  className="backtest-input py-2"
                 />
               </div>
               <div>
-                <label htmlFor="max-fraction" className="block text-xs font-medium text-gray-400 mb-1.5">
+                <label htmlFor="max-fraction" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                   Max Equity Fraction (%)
                 </label>
                 <input
@@ -221,7 +221,7 @@ export default function BacktestConfig() {
                   min={1}
                   max={100}
                   step={1}
-                  className="w-full bg-gray-800/60 border border-gray-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 backdrop-blur-sm transition-all"
+                  className="backtest-input py-2"
                 />
               </div>
             </>
@@ -239,7 +239,7 @@ export default function BacktestConfig() {
 
       {/* 3. Execution Modeling (Commissions, Slippage, Bid-Ask, Fills) */}
       <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-4 flex flex-col gap-4 backdrop-blur-md">
-        <h4 className="text-xs font-semibold text-cyan-400/80 uppercase tracking-wider">
+        <h4 className="text-xs font-semibold text-cyan-600 dark:text-cyan-400/80 uppercase tracking-wider">
           Realistic Execution Modeling
         </h4>
 
@@ -247,24 +247,24 @@ export default function BacktestConfig() {
           {/* Commission Configuration */}
           <div className="flex flex-col gap-3 p-3 bg-gray-900/30 border border-gray-800/60 rounded-lg">
             <div>
-              <label htmlFor="commission-type" className="block text-xs text-gray-400 mb-1">
+              <label htmlFor="commission-type" className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                 Commission Type
               </label>
               <select
                 id="commission-type"
                 value={config.commission_type || "percent"}
                 onChange={(e) => setConfig({ commission_type: e.target.value })}
-                className="w-full bg-gray-850 border border-gray-700/40 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+                className="backtest-sub-input"
               >
                 {commissionTypeOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value} className="bg-gray-900">
+                  <option key={opt.value} value={opt.value} className="bg-white dark:bg-gray-900 text-slate-800 dark:text-white">
                     {opt.label}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label htmlFor="commission-value" className="block text-xs text-gray-400 mb-1">
+              <label htmlFor="commission-value" className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                 {config.commission_type === "percent"
                   ? "Commission Rate (%)"
                   : `Comm. per Share (${currency})`}
@@ -292,7 +292,7 @@ export default function BacktestConfig() {
                 }
                 min={0}
                 step={config.commission_type === "percent" ? 0.01 : 0.001}
-                className="w-full bg-gray-850 border border-gray-700/40 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+                className="backtest-sub-input"
               />
             </div>
           </div>
@@ -301,7 +301,7 @@ export default function BacktestConfig() {
           {config.commission_type === "tiered" && (
             <div className="flex flex-col gap-3 p-3 bg-gray-900/30 border border-gray-800/60 rounded-lg">
               <div>
-                <label htmlFor="commission-tier-limit" className="block text-xs text-gray-400 mb-1">
+                <label htmlFor="commission-tier-limit" className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                   Tier Threshold (shares)
                 </label>
                 <input
@@ -311,11 +311,11 @@ export default function BacktestConfig() {
                   onChange={(e) => setConfig({ commission_tier_limit: Number(e.target.value) })}
                   min={0}
                   step={100}
-                  className="w-full bg-gray-850 border border-gray-700/40 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  className="backtest-sub-input"
                 />
               </div>
               <div>
-                <label htmlFor="commission-tier-value" className="block text-xs text-gray-400 mb-1">
+                <label htmlFor="commission-tier-value" className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                   Tier Rate per Share ({currency})
                 </label>
                 <input
@@ -325,7 +325,7 @@ export default function BacktestConfig() {
                   onChange={(e) => setConfig({ commission_tier_value: Number(e.target.value) })}
                   min={0}
                   step={0.001}
-                  className="w-full bg-gray-850 border border-gray-700/40 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  className="backtest-sub-input"
                 />
               </div>
             </div>
@@ -334,24 +334,24 @@ export default function BacktestConfig() {
           {/* Slippage Configuration */}
           <div className="flex flex-col gap-3 p-3 bg-gray-900/30 border border-gray-800/60 rounded-lg">
             <div>
-              <label htmlFor="slippage-type" className="block text-xs text-gray-400 mb-1">
+              <label htmlFor="slippage-type" className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                 Slippage Model
               </label>
               <select
                 id="slippage-type"
                 value={config.slippage_type || "percent"}
                 onChange={(e) => setConfig({ slippage_type: e.target.value })}
-                className="w-full bg-gray-850 border border-gray-700/40 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+                className="backtest-sub-input"
               >
                 {slippageTypeOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value} className="bg-gray-900">
+                  <option key={opt.value} value={opt.value} className="bg-white dark:bg-gray-900 text-slate-800 dark:text-white">
                     {opt.label}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label htmlFor="slippage-value" className="block text-xs text-gray-400 mb-1">
+              <label htmlFor="slippage-value" className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                 {config.slippage_type === "percent"
                   ? "Slippage Rate (%)"
                   : `Slippage in Points (${currency})`}
@@ -379,7 +379,7 @@ export default function BacktestConfig() {
                 }
                 min={0}
                 step={config.slippage_type === "percent" ? 0.001 : 0.01}
-                className="w-full bg-gray-850 border border-gray-700/40 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+                className="backtest-sub-input"
               />
             </div>
           </div>
@@ -387,7 +387,7 @@ export default function BacktestConfig() {
           {/* Bid-Ask Spread & Partial Fill volume limit */}
           <div className="flex flex-col gap-3 p-3 bg-gray-900/30 border border-gray-800/60 rounded-lg">
             <div>
-              <label htmlFor="spread" className="block text-xs text-gray-400 mb-1">
+              <label htmlFor="spread" className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                 Bid-Ask Spread (price points)
               </label>
               <input
@@ -398,11 +398,11 @@ export default function BacktestConfig() {
                 min={0}
                 step={0.01}
                 placeholder="e.g. 0.02"
-                className="w-full bg-gray-850 border border-gray-700/40 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+                className="backtest-sub-input"
               />
             </div>
             <div>
-              <label htmlFor="volume-limit-pct" className="block text-xs text-gray-400 mb-1">
+              <label htmlFor="volume-limit-pct" className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                 Volume limit per Bar (%)
               </label>
               <input
@@ -418,7 +418,7 @@ export default function BacktestConfig() {
                 max={100}
                 step={0.1}
                 placeholder="Unlimited"
-                className="w-full bg-gray-850 border border-gray-700/40 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+                className="backtest-sub-input"
               />
             </div>
           </div>
