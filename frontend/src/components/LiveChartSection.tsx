@@ -52,17 +52,9 @@ export function mapSymbolToTradingView(symbol: string): string {
   return clean;
 }
 
-// Declares the global TradingView object added by the tv.js script
-declare global {
-  interface Window {
-    TradingView: any;
-  }
-}
-
 export default function LiveChartSection() {
   const ticker = useBacktestStore((s) => s.ticker);
   const theme = useThemeStore((s) => s.theme);
-  const [scriptLoaded, setScriptLoaded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -88,84 +80,79 @@ export default function LiveChartSection() {
     enabled: !!ticker && isRestricted,
   });
 
-  // Load the TradingView widget loader script dynamically
-  useEffect(() => {
-    const existingScript = document.getElementById("tradingview-widget-script");
-    if (existingScript) {
-      setScriptLoaded(true);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = "tradingview-widget-script";
-    script.src = "https://s3.tradingview.com/tv.js";
-    script.async = true;
-    script.onload = () => setScriptLoaded(true);
-    script.onerror = () => console.error("Failed to load TradingView tv.js script");
-    document.body.appendChild(script);
-  }, []);
-
   const tvSymbol = mapSymbolToTradingView(ticker);
   const containerId = `tv-chart-${tvSymbol.replace(":", "-")}`;
 
-  // Initialize the inline TradingView widget (for non-restricted assets)
+  // Initialize the inline TradingView widget dynamically via script element injection (for non-restricted assets)
   useEffect(() => {
-    if (!scriptLoaded || !tvSymbol || isRestricted) return;
+    if (isRestricted || !tvSymbol) return;
 
     const timer = setTimeout(() => {
-      try {
-        if (window.TradingView && window.TradingView.widget) {
-          new window.TradingView.widget({
-            autosize: true,
-            symbol: tvSymbol,
-            interval: "D",
-            timezone: "Etc/UTC",
-            theme: theme,
-            style: "1", // Candlesticks
-            locale: "en",
-            enable_publishing: false,
-            hide_top_toolbar: true,
-            hide_legend: false,
-            save_image: false,
-            container_id: containerId,
-          });
-        }
-      } catch (e) {
-        console.error("Failed to initialize TradingView widget:", e);
-      }
-    }, 50);
+      const container = document.getElementById(containerId);
+      if (!container) return;
 
-    return () => clearTimeout(timer);
-  }, [scriptLoaded, tvSymbol, theme, containerId, isRestricted]);
+      container.innerHTML = ""; // Clear existing child widgets
 
-  // Initialize the fullscreen modal TradingView widget (for non-restricted assets)
-  useEffect(() => {
-    if (!isModalOpen || !scriptLoaded || !tvSymbol || isRestricted) return;
+      const script = document.createElement("script");
+      script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+      script.type = "text/javascript";
+      script.async = true;
+      script.innerHTML = JSON.stringify({
+        autosize: true,
+        symbol: tvSymbol,
+        interval: "D",
+        timezone: "Etc/UTC",
+        theme: theme,
+        style: "1", // Candlesticks
+        locale: "en",
+        enable_publishing: false,
+        hide_top_toolbar: true,
+        hide_legend: false,
+        save_image: false,
+        calendar: false,
+        support_host: "https://www.tradingview.com"
+      });
 
-    const timer = setTimeout(() => {
-      try {
-        if (window.TradingView && window.TradingView.widget) {
-          new window.TradingView.widget({
-            autosize: true,
-            symbol: tvSymbol,
-            interval: "D",
-            timezone: "Etc/UTC",
-            theme: theme,
-            style: "1",
-            locale: "en",
-            enable_publishing: false,
-            hide_side_toolbar: false, // Show indicators/drawing tools
-            hide_top_toolbar: false,
-            container_id: "tv-chart-fullscreen",
-          });
-        }
-      } catch (e) {
-        console.error("Failed to initialize fullscreen TradingView widget:", e);
-      }
+      container.appendChild(script);
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [isModalOpen, scriptLoaded, tvSymbol, theme, isRestricted]);
+  }, [tvSymbol, theme, containerId, isRestricted]);
+
+  // Initialize the fullscreen modal TradingView widget dynamically via script element injection
+  useEffect(() => {
+    if (!isModalOpen || isRestricted || !tvSymbol) return;
+
+    const timer = setTimeout(() => {
+      const container = document.getElementById("tv-chart-fullscreen");
+      if (!container) return;
+
+      container.innerHTML = "";
+
+      const script = document.createElement("script");
+      script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+      script.type = "text/javascript";
+      script.async = true;
+      script.innerHTML = JSON.stringify({
+        autosize: true,
+        symbol: tvSymbol,
+        interval: "D",
+        timezone: "Etc/UTC",
+        theme: theme,
+        style: "1",
+        locale: "en",
+        enable_publishing: false,
+        hide_side_toolbar: false, // Show indicators/drawing tools
+        hide_top_toolbar: false,
+        calendar: false,
+        support_host: "https://www.tradingview.com"
+      });
+
+      container.appendChild(script);
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [isModalOpen, tvSymbol, theme, isRestricted]);
 
   const externalLink = `https://www.tradingview.com/symbols/${tvSymbol.replace(":", "-")}/`;
 
@@ -229,16 +216,7 @@ export default function LiveChartSection() {
           )
         ) : (
           // RENDER TRADINGVIEW LIVE WIDGET FOR SUPPORTED TICKERS
-          !scriptLoaded ? (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex items-center gap-3">
-                <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                <span className="text-gray-400 text-sm">Connecting to TradingView...</span>
-              </div>
-            </div>
-          ) : (
-            <div key={tvSymbol} id={containerId} className="w-full h-full" />
-          )
+          <div key={tvSymbol} id={containerId} className="w-full h-full" />
         )}
       </div>
 
