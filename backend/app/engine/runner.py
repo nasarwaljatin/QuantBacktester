@@ -4,7 +4,7 @@
 import backtrader as bt
 import pandas as pd
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from app.engine.strategy_sandbox import run_cerebro_with_timeout
 
@@ -174,6 +174,7 @@ def run_backtest(
     ohlcv_data: pd.DataFrame | dict[str, pd.DataFrame],
     config: dict[str, Any],
     ticker_weights: dict[str, float] = None,
+    strategy_params: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """Run a backtest using Backtrader and return structured results.
 
@@ -182,6 +183,9 @@ def run_backtest(
         ohlcv_data: Single DataFrame or dict of {ticker: DataFrame} with columns [date, open, high, low, close, volume].
         config: Dict with initial_capital, commission, slippage.
         ticker_weights: Dict of {ticker: weight_pct} for portfolio sizing.
+        strategy_params: Optional overrides for the strategy's ``params`` (used by
+            parameter sweeps). Passed to ``cerebro.addstrategy`` so Backtrader applies
+            them itself; unknown names raise ValueError.
 
     Returns:
         Dict with equity_curve, trades, and analyzer_results.
@@ -349,8 +353,17 @@ def run_backtest(
         custom_buy._is_qbt_patched = True
         strategy_class.buy = custom_buy
 
-    # Add strategy
-    cerebro.addstrategy(strategy_class)
+    # Add strategy. Parameter overrides go through addstrategy(**kwargs): Backtrader's
+    # params class must not be replaced, or instantiating the strategy fails.
+    strategy_params = strategy_params or {}
+    known_params = set(strategy_class.params._getkeys())
+    unknown = sorted(set(strategy_params) - known_params)
+    if unknown:
+        raise ValueError(
+            f"Unknown strategy parameter(s): {', '.join(unknown)}. "
+            f"Strategy defines: {', '.join(sorted(known_params)) or 'no params'}."
+        )
+    cerebro.addstrategy(strategy_class, **strategy_params)
 
     # Add analyzers
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trade_analyzer")

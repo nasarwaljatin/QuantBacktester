@@ -2,6 +2,7 @@
 """Backtest API endpoints — submit, poll, and retrieve results."""
 
 import uuid
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 
@@ -30,6 +31,56 @@ from app.engine.strategies import STRATEGY_TEMPLATES
 from app.services.walk_forward_service import estimate_wfa_runs
 
 router = APIRouter(prefix="/api", tags=["backtest"])
+
+
+# ---------------------------------------------------------------------------
+# Helpers: create the DB record first, then dispatch
+# ---------------------------------------------------------------------------
+
+def _create_pending_record(db: Session, request, config_dict: dict, run_type: str, ticker) -> str:
+    """Insert and commit the PENDING row before the task is dispatched.
+
+    The task id is chosen here, so a Celery worker that starts immediately always finds
+    the row (dispatching first let a fast worker race the API's insert).
+    """
+    task_id = uuid.uuid4().hex
+    db.add(BacktestResult(
+        task_id=task_id,
+        status="PENDING",
+        ticker=ticker,
+        tickers=request.tickers,
+        strategy_code=request.strategy_code,
+        start_date=request.start_date.isoformat(),
+        end_date=request.end_date.isoformat(),
+        config_json=config_dict,
+        run_type=run_type,
+    ))
+    db.commit()
+    return task_id
+
+
+def _dispatch(celery_task, local_fn, task_id: str, background_tasks: BackgroundTasks, **task_kwargs) -> None:
+    """Run the job on a Celery worker (with the pre-chosen task id) or as a local background task."""
+    if settings.USE_CELERY:
+        celery_task.apply_async(kwargs=task_kwargs, task_id=task_id)
+    else:
+        background_tasks.add_task(local_fn, task_id=task_id, **task_kwargs)
+
+
+def _mark_failed(db: Session, task_id, message: str) -> None:
+    """If dispatch fails after the row was created, record the failure instead of leaving it PENDING."""
+    if task_id is None:
+        return
+    try:
+        db.rollback()
+        record = db.query(BacktestResult).filter(BacktestResult.task_id == task_id).first()
+        if record:
+            record.status = "FAILURE"
+            record.error_message = message
+            record.completed_at = datetime.utcnow()
+            db.commit()
+    except Exception:
+        db.rollback()
 
 
 # ---------------------------------------------------------------------------
@@ -88,56 +139,29 @@ async def submit_backtest(
             detail={"error": "start_date must be before end_date"},
         )
 
+    task_id = None
     try:
         config_dict = request.config.model_dump()
-
-        if settings.USE_CELERY:
-            # Dispatch Celery task
-            task = run_backtest_task.delay(
-                strategy_code=request.strategy_code,
-                ticker=request.ticker,
-                start_date=request.start_date.isoformat(),
-                end_date=request.end_date.isoformat(),
-                config_dict=config_dict,
-                tickers=request.tickers,
-                ticker_weights=request.ticker_weights,
-            )
-            task_id = task.id
-            status = "PENDING"
-        else:
-            # Dispatch FastAPI background task
-            task_id = uuid.uuid4().hex
-            status = "PENDING"
-            background_tasks.add_task(
-                run_backtest_local,
-                task_id=task_id,
-                strategy_code=request.strategy_code,
-                ticker=request.ticker,
-                start_date=request.start_date.isoformat(),
-                end_date=request.end_date.isoformat(),
-                config_dict=config_dict,
-                tickers=request.tickers,
-                ticker_weights=request.ticker_weights,
-            )
-
-        # Create DB record
-        db_record = BacktestResult(
-            task_id=task_id,
-            status=status,
-            ticker=request.ticker,
-            tickers=request.tickers,
+        task_id = _create_pending_record(
+            db, request, config_dict, run_type="single", ticker=request.ticker
+        )
+        _dispatch(
+            run_backtest_task,
+            run_backtest_local,
+            task_id,
+            background_tasks,
             strategy_code=request.strategy_code,
+            ticker=request.ticker,
             start_date=request.start_date.isoformat(),
             end_date=request.end_date.isoformat(),
-            config_json=config_dict,
-            run_type="single",
+            config_dict=config_dict,
+            tickers=request.tickers,
+            ticker_weights=request.ticker_weights,
         )
-        db.add(db_record)
-        db.commit()
-
         return {"task_id": task_id}
 
     except Exception as e:
+        _mark_failed(db, task_id, f"Failed to submit backtest: {e}")
         raise HTTPException(
             status_code=500,
             detail={"error": f"Failed to submit backtest: {str(e)}"},
@@ -277,55 +301,31 @@ async def submit_sweep(
     Runs a grid search over all combinations of provided parameter values
     and returns the task_id for polling.
     """
+    task_id = None
     try:
         config_dict = request.config.model_dump()
-
-        if settings.USE_CELERY:
-            task = run_sweep_task.delay(
-                strategy_code=request.strategy_code,
-                tickers=request.tickers,
-                start_date=request.start_date.isoformat(),
-                end_date=request.end_date.isoformat(),
-                param_grid=request.param_grid,
-                base_config=config_dict,
-                ticker_weights=request.ticker_weights,
-                objective=request.objective,
-            )
-            task_id = task.id
-            status = "PENDING"
-        else:
-            task_id = uuid.uuid4().hex
-            status = "PENDING"
-            background_tasks.add_task(
-                run_sweep_local,
-                task_id=task_id,
-                strategy_code=request.strategy_code,
-                tickers=request.tickers,
-                start_date=request.start_date.isoformat(),
-                end_date=request.end_date.isoformat(),
-                param_grid=request.param_grid,
-                base_config=config_dict,
-                ticker_weights=request.ticker_weights,
-                objective=request.objective,
-            )
-
-        db_record = BacktestResult(
-            task_id=task_id,
-            status=status,
+        task_id = _create_pending_record(
+            db, request, config_dict, run_type="sweep",
             ticker=request.tickers[0] if request.tickers else None,
-            tickers=request.tickers,
+        )
+        _dispatch(
+            run_sweep_task,
+            run_sweep_local,
+            task_id,
+            background_tasks,
             strategy_code=request.strategy_code,
+            tickers=request.tickers,
             start_date=request.start_date.isoformat(),
             end_date=request.end_date.isoformat(),
-            config_json=config_dict,
-            run_type="sweep",
+            param_grid=request.param_grid,
+            base_config=config_dict,
+            ticker_weights=request.ticker_weights,
+            objective=request.objective,
         )
-        db.add(db_record)
-        db.commit()
-
         return {"task_id": task_id}
 
     except Exception as e:
+        _mark_failed(db, task_id, f"Failed to submit sweep: {e}")
         raise HTTPException(
             status_code=500,
             detail={"error": f"Failed to submit sweep: {str(e)}"},
@@ -381,66 +381,36 @@ async def submit_walkforward(
     db: Session = Depends(get_db),
 ) -> dict:
     """Submit a walk-forward analysis for asynchronous execution."""
+    task_id = None
     try:
         config_dict = request.config.model_dump()
-
-        if settings.USE_CELERY:
-            task = run_walkforward_task.delay(
-                strategy_code=request.strategy_code,
-                tickers=request.tickers,
-                start_date=request.start_date.isoformat(),
-                end_date=request.end_date.isoformat(),
-                param_grid=request.param_grid,
-                base_config=config_dict,
-                ticker_weights=request.ticker_weights,
-                in_sample_days=request.in_sample_days,
-                out_of_sample_days=request.out_of_sample_days,
-                objective=request.objective,
-                window_type=request.window_type,
-                anchored=request.anchored,
-                max_combinations=request.max_combinations,
-            )
-            task_id = task.id
-            status = "PENDING"
-        else:
-            task_id = uuid.uuid4().hex
-            status = "PENDING"
-            background_tasks.add_task(
-                run_walkforward_local,
-                task_id=task_id,
-                strategy_code=request.strategy_code,
-                tickers=request.tickers,
-                start_date=request.start_date.isoformat(),
-                end_date=request.end_date.isoformat(),
-                param_grid=request.param_grid,
-                base_config=config_dict,
-                ticker_weights=request.ticker_weights,
-                in_sample_days=request.in_sample_days,
-                out_of_sample_days=request.out_of_sample_days,
-                objective=request.objective,
-                window_type=request.window_type,
-                anchored=request.anchored,
-                max_combinations=request.max_combinations,
-            )
-
-
-        db_record = BacktestResult(
-            task_id=task_id,
-            status=status,
+        task_id = _create_pending_record(
+            db, request, config_dict, run_type="walk_forward",
             ticker=request.tickers[0] if request.tickers else None,
-            tickers=request.tickers,
+        )
+        _dispatch(
+            run_walkforward_task,
+            run_walkforward_local,
+            task_id,
+            background_tasks,
             strategy_code=request.strategy_code,
+            tickers=request.tickers,
             start_date=request.start_date.isoformat(),
             end_date=request.end_date.isoformat(),
-            config_json=config_dict,
-            run_type="walk_forward",
+            param_grid=request.param_grid,
+            base_config=config_dict,
+            ticker_weights=request.ticker_weights,
+            in_sample_days=request.in_sample_days,
+            out_of_sample_days=request.out_of_sample_days,
+            objective=request.objective,
+            window_type=request.window_type,
+            anchored=request.anchored,
+            max_combinations=request.max_combinations,
         )
-        db.add(db_record)
-        db.commit()
-
         return {"task_id": task_id}
 
     except Exception as e:
+        _mark_failed(db, task_id, f"Failed to submit walk-forward: {e}")
         raise HTTPException(
             status_code=500,
             detail={"error": f"Failed to submit walk-forward: {str(e)}"},

@@ -8,7 +8,8 @@ celery_app = Celery(
     "quantbacktester",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["app.tasks.backtest_task"],
+    # Every module that defines tasks must be listed, or the worker rejects them as unregistered.
+    include=["app.tasks.backtest_task", "app.tasks.optimization_task"],
 )
 
 celery_app.conf.update(

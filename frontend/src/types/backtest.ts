@@ -64,6 +64,9 @@ export interface MonteCarloResult {
   percentile_95: number[];
   final_values: number[];
   prob_profit: number;
+  max_drawdown_pct_p50?: number;
+  max_drawdown_pct_p95?: number;
+  method?: string;
 }
 
 export interface BacktestResponse {

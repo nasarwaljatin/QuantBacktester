@@ -46,16 +46,10 @@ def _run_single_combination(
     try:
         strategy_class = compile_user_strategy(strategy_code)
 
-        # Inject sweep params into strategy class
-        for key, value in parameters.items():
-            if hasattr(strategy_class, "params"):
-                # Backtrader uses a params tuple — we patch via class attribute
-                strategy_class.params = tuple(
-                    (k, value if k == key else v)
-                    for k, v in dict(strategy_class.params._getitems()).items()
-                )
-
-        result = run_backtest(strategy_class, ohlcv_dfs, base_config, ticker_weights)
+        # Sweep params are handed to Backtrader as addstrategy() keyword arguments.
+        result = run_backtest(
+            strategy_class, ohlcv_dfs, base_config, ticker_weights, strategy_params=parameters
+        )
         equity_values = [p["value"] for p in result["equity_curve"]]
         metrics = compute_all_metrics(equity_values, result["trades"])
 

@@ -178,6 +178,18 @@ class MonteCarloResult(BaseModel):
     prob_profit: float = Field(
         description="Percentage of simulations ending above initial capital"
     )
+    max_drawdown_pct_p50: Optional[float] = Field(
+        default=None,
+        description="Median of each simulation's maximum drawdown, in percent"
+    )
+    max_drawdown_pct_p95: Optional[float] = Field(
+        default=None,
+        description="95th percentile of maximum drawdown across simulations, in percent"
+    )
+    method: Optional[str] = Field(
+        default=None,
+        description="Simulation method: 'bootstrap' (trades resampled with replacement)"
+    )
 
 
 class BacktestResponse(BaseModel):
